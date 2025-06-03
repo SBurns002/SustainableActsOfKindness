@@ -92,35 +92,37 @@ const MapView: React.FC = () => {
   };
 
   return (
-    <div className="relative w-full h-full">
-      <div className="absolute top-4 left-4 right-4 z-10 bg-white rounded-lg shadow-lg p-4 max-w-md mx-auto">
+    <div className="relative w-full h-full flex flex-col">
+      <div className="absolute top-4 left-4 right-4 z-[1001] bg-white rounded-lg shadow-lg p-4 max-w-md mx-auto">
         <DateRangeFilter 
           onDateRangeChange={setDateRange}
           dateRange={dateRange}
         />
       </div>
       
-      <MapContainer
-        center={[42.3601, -71.0589]} // Center on Boston
-        zoom={12}
-        className="w-full h-full"
-        zoomControl={false}
-      >
-        <ZoomControl position="topright" />
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        
-        {filteredData.features.map((feature: any, index: number) => (
-          <GeoJSON
-            key={`${feature.properties.name}-${index}`}
-            data={feature}
-            style={getFeatureStyle}
-            onEachFeature={onEachFeature}
+      <div className="flex-1">
+        <MapContainer
+          center={[42.3601, -71.0589]} // Center on Boston
+          zoom={12}
+          className="w-full h-full"
+          zoomControl={false}
+        >
+          <ZoomControl position="topright" />
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-        ))}
-      </MapContainer>
+          
+          {filteredData.features.map((feature: any, index: number) => (
+            <GeoJSON
+              key={`${feature.properties.name}-${index}`}
+              data={feature}
+              style={getFeatureStyle}
+              onEachFeature={onEachFeature}
+            />
+          ))}
+        </MapContainer>
+      </div>
       
       <div className="absolute bottom-4 right-4 z-[1000]">
         <MapLegend />
