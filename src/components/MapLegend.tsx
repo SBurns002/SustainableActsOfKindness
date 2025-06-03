@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Droplets, Trees as Tree, Trash2, ChevronUp, ChevronDown, Leaf } from 'lucide-react';
+import { Droplets, Trees as Tree, Trash2, ChevronUp, ChevronDown, Leaf, Recycle } from 'lucide-react';
 
 const MapLegend: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -48,9 +48,14 @@ const MapLegend: React.FC = () => {
             </div>
           </div>
 
-          <div>
-            <h3 className="text-lg font-semibold mb-3 text-gray-800">Pollution Types</h3>
-            <div className="space-y-2">
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold mb-3 text-gray-800">Environmental Cleanup</h3>
+            <div className="flex items-center space-x-2 mb-2">
+              <Recycle className="w-5 h-5 text-emerald-600" />
+              <span className="text-sm">General Environmental Cleanup</span>
+            </div>
+            <div className="space-y-2 pl-7">
+              <div className="text-sm text-gray-600">Types of Cleanup:</div>
               <div className="flex items-center">
                 <Droplets className="w-5 h-5 mr-2 text-blue-600" />
                 <span className="text-sm">Water Pollution</span>
