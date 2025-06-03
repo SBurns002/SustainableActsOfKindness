@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, Droplets, Factory, Tree, Trash2 } from 'lucide-react';
+import { AlertTriangle, Droplets, Factory, Trees as Tree, Trash2 } from 'lucide-react';
 
 const MapLegend: React.FC = () => {
   return (
