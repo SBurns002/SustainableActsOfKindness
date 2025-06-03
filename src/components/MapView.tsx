@@ -95,7 +95,7 @@ const MapView: React.FC = () => {
           <ZoomControl position="topright" />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            url="https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png"
           />
           
           {filteredData.features.map((feature: any, index: number) => (
