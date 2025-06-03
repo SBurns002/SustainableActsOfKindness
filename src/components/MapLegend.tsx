@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Droplets, Trees as Tree, Trash2, ChevronUp, ChevronDown, Leaf, Recycle } from 'lucide-react';
+import { Droplets, Trees as Tree, Trash2, ChevronUp, ChevronDown, Leaf, Flower2 } from 'lucide-react';
 
 const MapLegend: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -34,11 +34,15 @@ const MapLegend: React.FC = () => {
                   <div className="w-6 h-6 rounded mr-2" style={{ backgroundColor: '#0EA5E9', border: '2px solid #0369A1' }}></div>
                   <span className="text-sm">Environmental Cleanup Site</span>
                 </div>
+                <div className="flex items-center">
+                  <div className="w-6 h-6 rounded mr-2" style={{ backgroundColor: '#B45309', border: '2px solid #92400E' }}></div>
+                  <span className="text-sm">Community Garden</span>
+                </div>
               </div>
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold mb-3 text-gray-800">Cleanup Categories</h3>
+              <h3 className="text-lg font-semibold mb-3 text-gray-800">Categories</h3>
               <div className="space-y-2">
                 <div className="flex items-center">
                   <Droplets className="w-5 h-5 mr-2 text-blue-600" />
@@ -56,6 +60,10 @@ const MapLegend: React.FC = () => {
                   <Leaf className="w-5 h-5 mr-2 text-emerald-600" />
                   <span className="text-sm">Tree Planting</span>
                 </div>
+                <div className="flex items-center">
+                  <Flower2 className="w-5 h-5 mr-2 text-amber-600" />
+                  <span className="text-sm">Community Garden</span>
+                </div>
               </div>
             </div>
           </div>
@@ -70,6 +78,7 @@ const MapLegend: React.FC = () => {
         <div className="flex items-center space-x-2">
           <div className="w-4 h-4 rounded" style={{ backgroundColor: '#059669', border: '1px solid #065f46' }}></div>
           <div className="w-4 h-4 rounded" style={{ backgroundColor: '#0EA5E9', border: '1px solid #0369A1' }}></div>
+          <div className="w-4 h-4 rounded" style={{ backgroundColor: '#B45309', border: '1px solid #92400E' }}></div>
           <ChevronUp className="w-5 h-5 text-gray-600" />
         </div>
       )}

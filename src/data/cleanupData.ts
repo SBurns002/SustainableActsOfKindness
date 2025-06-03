@@ -407,6 +407,69 @@ export const cleanupData = {
           [-97.8, 30.3]
         ]]
       }
+    },
+    {
+      type: "Feature",
+      properties: {
+        name: "Fenway Victory Gardens",
+        type: "Community Garden",
+        date: "2025-04-01",
+        description: "Historic community gardens with over 500 plots for local residents.",
+        eventType: "garden",
+        plots: 500
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [-71.095, 42.345],
+          [-71.090, 42.345],
+          [-71.090, 42.342],
+          [-71.095, 42.342],
+          [-71.095, 42.345]
+        ]]
+      }
+    },
+    {
+      type: "Feature",
+      properties: {
+        name: "Cambridge Community Garden",
+        type: "Community Garden",
+        date: "2025-05-01",
+        description: "Urban garden promoting sustainable food production and community engagement.",
+        eventType: "garden",
+        plots: 150
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [-71.115, 42.375],
+          [-71.110, 42.375],
+          [-71.110, 42.372],
+          [-71.115, 42.372],
+          [-71.115, 42.375]
+        ]]
+      }
+    },
+    {
+      type: "Feature",
+      properties: {
+        name: "Somerville Growing Center",
+        type: "Community Garden",
+        date: "2025-04-15",
+        description: "Educational garden space focusing on sustainable urban agriculture.",
+        eventType: "garden",
+        plots: 75
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [-71.098, 42.385],
+          [-71.095, 42.385],
+          [-71.095, 42.383],
+          [-71.098, 42.383],
+          [-71.098, 42.385]
+        ]]
+      }
     }
   ]
 };

@@ -30,47 +30,72 @@ const MapView: React.FC = () => {
   const getFeatureStyle = (feature: any) => {
     const { eventType } = feature.properties;
     
-    if (eventType === 'treePlanting') {
-      return {
-        fillColor: '#059669', // emerald-600
-        weight: 2,
-        opacity: 1,
-        color: '#065f46', // emerald-800
-        dashArray: '3',
-        fillOpacity: 0.5
-      };
+    switch (eventType) {
+      case 'treePlanting':
+        return {
+          fillColor: '#059669', // emerald-600
+          weight: 2,
+          opacity: 1,
+          color: '#065f46', // emerald-800
+          dashArray: '3',
+          fillOpacity: 0.5
+        };
+      case 'garden':
+        return {
+          fillColor: '#B45309', // amber-700
+          weight: 2,
+          opacity: 1,
+          color: '#92400E', // amber-800
+          dashArray: '3',
+          fillOpacity: 0.5
+        };
+      default:
+        return {
+          fillColor: '#0EA5E9', // sky-500
+          weight: 2,
+          opacity: 1,
+          color: '#0369A1', // sky-700
+          dashArray: '3',
+          fillOpacity: 0.5
+        };
     }
-    
-    // Environmental cleanup style
-    return {
-      fillColor: '#0EA5E9', // sky-500
-      weight: 2,
-      opacity: 1,
-      color: '#0369A1', // sky-700
-      dashArray: '3',
-      fillOpacity: 0.5
-    };
   };
 
   const onEachFeature = (feature: any, layer: any) => {
     if (feature.properties) {
-      const { eventType, trees } = feature.properties;
-      const tooltipContent = eventType === 'treePlanting'
-        ? `
-          <div>
-            <strong>${feature.properties.name}</strong><br/>
-            <span>Type: ${feature.properties.type}</span><br/>
-            <span>Trees to Plant: ${trees}</span><br/>
-            <span>Date: ${new Date(feature.properties.date).toLocaleDateString()}</span>
-          </div>
-        `
-        : `
-          <div>
-            <strong>${feature.properties.name}</strong><br/>
-            <span>Type: ${feature.properties.type}</span><br/>
-            <span>Date: ${new Date(feature.properties.date).toLocaleDateString()}</span>
-          </div>
-        `;
+      const { eventType, trees, plots } = feature.properties;
+      let tooltipContent;
+      
+      switch (eventType) {
+        case 'treePlanting':
+          tooltipContent = `
+            <div>
+              <strong>${feature.properties.name}</strong><br/>
+              <span>Type: ${feature.properties.type}</span><br/>
+              <span>Trees to Plant: ${trees}</span><br/>
+              <span>Date: ${new Date(feature.properties.date).toLocaleDateString()}</span>
+            </div>
+          `;
+          break;
+        case 'garden':
+          tooltipContent = `
+            <div>
+              <strong>${feature.properties.name}</strong><br/>
+              <span>Type: ${feature.properties.type}</span><br/>
+              <span>Garden Plots: ${plots}</span><br/>
+              <span>Date: ${new Date(feature.properties.date).toLocaleDateString()}</span>
+            </div>
+          `;
+          break;
+        default:
+          tooltipContent = `
+            <div>
+              <strong>${feature.properties.name}</strong><br/>
+              <span>Type: ${feature.properties.type}</span><br/>
+              <span>Date: ${new Date(feature.properties.date).toLocaleDateString()}</span>
+            </div>
+          `;
+      }
       
       layer.bindTooltip(tooltipContent, { sticky: true });
     }
