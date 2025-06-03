@@ -92,7 +92,7 @@ const MapView: React.FC = () => {
   };
 
   return (
-    <div className="relative h-full">
+    <div className="relative w-full h-full">
       <div className="absolute top-4 left-4 right-4 z-10 bg-white rounded-lg shadow-lg p-4 max-w-md mx-auto">
         <DateRangeFilter 
           onDateRangeChange={setDateRange}
@@ -101,9 +101,9 @@ const MapView: React.FC = () => {
       </div>
       
       <MapContainer
-        center={[-71.0589, 42.3601]} // Center on Boston
+        center={[42.3601, -71.0589]} // Center on Boston
         zoom={12}
-        style={{ height: '100%', width: '100%' }}
+        className="w-full h-full"
         zoomControl={false}
       >
         <TileLayer
