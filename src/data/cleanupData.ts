@@ -7,6 +7,92 @@ export const cleanupData = {
     {
       type: "Feature",
       properties: {
+        name: "Charles River Cleanup Initiative",
+        type: "Water Pollution",
+        priority: "high",
+        date: "2024-04-01",
+        description: "Urban river cleanup focusing on plastic pollution and industrial runoff in the Charles River.",
+        eventType: "cleanup"
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [-71.12, 42.37],
+          [-71.07, 42.37],
+          [-71.07, 42.35],
+          [-71.12, 42.35],
+          [-71.12, 42.37]
+        ]]
+      }
+    },
+    {
+      type: "Feature",
+      properties: {
+        name: "Boston Harbor Islands Restoration",
+        type: "Mixed Pollution",
+        priority: "medium",
+        date: "2024-05-15",
+        description: "Marine ecosystem restoration and debris removal around Boston Harbor Islands.",
+        eventType: "cleanup"
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [-70.97, 42.33],
+          [-70.92, 42.33],
+          [-70.92, 42.30],
+          [-70.97, 42.30],
+          [-70.97, 42.33]
+        ]]
+      }
+    },
+    {
+      type: "Feature",
+      properties: {
+        name: "Emerald Necklace Tree Initiative",
+        type: "Urban Reforestation",
+        priority: "medium",
+        date: "2024-04-20",
+        description: "Community tree planting event along Boston's historic park system.",
+        eventType: "treePlanting",
+        trees: 250
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [-71.12, 42.33],
+          [-71.09, 42.33],
+          [-71.09, 42.31],
+          [-71.12, 42.31],
+          [-71.12, 42.33]
+        ]]
+      }
+    },
+    {
+      type: "Feature",
+      properties: {
+        name: "Cambridge Urban Forest Expansion",
+        type: "Street Tree Planting",
+        priority: "low",
+        date: "2024-05-01",
+        description: "Street tree planting program in Cambridge neighborhoods.",
+        eventType: "treePlanting",
+        trees: 175
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [-71.13, 42.39],
+          [-71.10, 42.39],
+          [-71.10, 42.37],
+          [-71.13, 42.37],
+          [-71.13, 42.39]
+        ]]
+      }
+    },
+    {
+      type: "Feature",
+      properties: {
         name: "Great Lakes Plastic Pollution",
         type: "Water Pollution",
         priority: "high",

@@ -101,8 +101,8 @@ const MapView: React.FC = () => {
       </div>
       
       <MapContainer
-        center={[39.8283, -98.5795]}
-        zoom={4}
+        center={[-71.0589, 42.3601]} // Center on Boston
+        zoom={12}
         style={{ height: '100%', width: '100%' }}
         zoomControl={false}
       >
