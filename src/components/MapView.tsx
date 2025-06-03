@@ -98,7 +98,7 @@ const MapView: React.FC = () => {
         ))}
       </MapContainer>
       
-      <div className="absolute bottom-8 right-8 z-10">
+      <div className="absolute bottom-4 right-4 z-[1000]">
         <MapLegend />
       </div>
     </div>
