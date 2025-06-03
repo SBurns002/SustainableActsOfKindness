@@ -21,24 +21,6 @@ const MapLegend: React.FC = () => {
             <h3 className="text-lg font-semibold text-gray-800">Legend</h3>
             <ChevronDown className="w-5 h-5 text-gray-600" />
           </div>
-          
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-3 text-gray-800">Cleanup Priority</h3>
-            <div className="space-y-2">
-              <div className="flex items-center">
-                <div className="w-6 h-6 rounded mr-2" style={{ backgroundColor: '#EF4444' }}></div>
-                <span className="text-sm">High Priority - Immediate Action Required</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-6 h-6 rounded mr-2" style={{ backgroundColor: '#F59E0B' }}></div>
-                <span className="text-sm">Medium Priority - Planned Intervention</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-6 h-6 rounded mr-2" style={{ backgroundColor: '#10B981' }}></div>
-                <span className="text-sm">Low Priority - Monitoring</span>
-              </div>
-            </div>
-          </div>
 
           <div className="mb-6">
             <h3 className="text-lg font-semibold mb-3 text-gray-800">Tree Planting Events</h3>
@@ -84,9 +66,6 @@ const MapLegend: React.FC = () => {
       ) : (
         <div className="flex items-center">
           <div className="flex space-x-1">
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: '#EF4444' }}></div>
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: '#F59E0B' }}></div>
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: '#10B981' }}></div>
             <div className="w-4 h-4 rounded" style={{ backgroundColor: '#059669', border: '1px solid #065f46' }}></div>
           </div>
           <ChevronUp className="w-5 h-5 text-gray-600 ml-2" />
