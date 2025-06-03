@@ -1,5 +1,5 @@
 // This file contains mock GeoJSON data for environmental cleanup areas
-// in the continental United States
+// and tree planting events in the continental United States
 
 export const cleanupData = {
   type: "FeatureCollection",
@@ -11,7 +11,8 @@ export const cleanupData = {
         type: "Water Pollution",
         priority: "high",
         date: "2023-09-15",
-        description: "Plastic waste accumulation in the Great Lakes region affecting wildlife and water quality."
+        description: "Plastic waste accumulation in the Great Lakes region affecting wildlife and water quality.",
+        eventType: "cleanup"
       },
       geometry: {
         type: "Polygon",
@@ -31,7 +32,8 @@ export const cleanupData = {
         type: "Oil Pollution",
         priority: "high",
         date: "2023-06-22",
-        description: "Remaining contamination from historical oil spills requiring remediation."
+        description: "Remaining contamination from historical oil spills requiring remediation.",
+        eventType: "cleanup"
       },
       geometry: {
         type: "Polygon",
@@ -51,7 +53,8 @@ export const cleanupData = {
         type: "Chemical Contamination",
         priority: "medium",
         date: "2023-11-03",
-        description: "Former industrial sites with soil contamination requiring remediation."
+        description: "Former industrial sites with soil contamination requiring remediation.",
+        eventType: "cleanup"
       },
       geometry: {
         type: "Polygon",
@@ -71,7 +74,8 @@ export const cleanupData = {
         type: "Ash and Debris",
         priority: "medium",
         date: "2024-01-15",
-        description: "Post-wildfire cleanup of ash and debris that could contaminate water sources."
+        description: "Post-wildfire cleanup of ash and debris that could contaminate water sources.",
+        eventType: "cleanup"
       },
       geometry: {
         type: "Polygon",
@@ -91,7 +95,8 @@ export const cleanupData = {
         type: "Heavy Metal Contamination",
         priority: "high",
         date: "2023-08-05",
-        description: "Abandoned mines leaching heavy metals into local water systems."
+        description: "Abandoned mines leaching heavy metals into local water systems.",
+        eventType: "cleanup"
       },
       geometry: {
         type: "Polygon",
@@ -111,7 +116,8 @@ export const cleanupData = {
         type: "Deforestation",
         priority: "low",
         date: "2024-02-20",
-        description: "Areas requiring reforestation and habitat restoration."
+        description: "Areas requiring reforestation and habitat restoration.",
+        eventType: "cleanup"
       },
       geometry: {
         type: "Polygon",
@@ -131,7 +137,8 @@ export const cleanupData = {
         type: "Industrial Waste",
         priority: "medium",
         date: "2023-04-18",
-        description: "Former industrial waste disposal site requiring containment and cleanup."
+        description: "Former industrial waste disposal site requiring containment and cleanup.",
+        eventType: "cleanup"
       },
       geometry: {
         type: "Polygon",
@@ -151,7 +158,8 @@ export const cleanupData = {
         type: "Habitat Degradation",
         priority: "medium",
         date: "2023-12-01",
-        description: "Restoration of natural water flow and removal of invasive species."
+        description: "Restoration of natural water flow and removal of invasive species.",
+        eventType: "cleanup"
       },
       geometry: {
         type: "Polygon",
@@ -171,7 +179,8 @@ export const cleanupData = {
         type: "Chemical Fertilizer",
         priority: "low",
         date: "2024-03-10",
-        description: "Areas affected by agricultural chemical runoff requiring mitigation."
+        description: "Areas affected by agricultural chemical runoff requiring mitigation.",
+        eventType: "cleanup"
       },
       geometry: {
         type: "Polygon",
@@ -191,7 +200,8 @@ export const cleanupData = {
         type: "Soil Contamination",
         priority: "low",
         date: "2023-07-22",
-        description: "Former mining sites requiring soil remediation and native plant restoration."
+        description: "Former mining sites requiring soil remediation and native plant restoration.",
+        eventType: "cleanup"
       },
       geometry: {
         type: "Polygon",
@@ -211,7 +221,8 @@ export const cleanupData = {
         type: "Mixed Pollution",
         priority: "high",
         date: "2024-01-05",
-        description: "Urban waterway requiring cleanup of multiple contaminants from historical industrial use."
+        description: "Urban waterway requiring cleanup of multiple contaminants from historical industrial use.",
+        eventType: "cleanup"
       },
       geometry: {
         type: "Polygon",
@@ -231,7 +242,8 @@ export const cleanupData = {
         type: "Electronic Waste",
         priority: "medium",
         date: "2023-10-12",
-        description: "Improper disposal of solar panel components requiring specialized cleanup."
+        description: "Improper disposal of solar panel components requiring specialized cleanup.",
+        eventType: "cleanup"
       },
       geometry: {
         type: "Polygon",
@@ -241,6 +253,72 @@ export const cleanupData = {
           [-111.0, 32.5],
           [-112.0, 32.5],
           [-112.0, 33.5]
+        ]]
+      }
+    },
+    {
+      type: "Feature",
+      properties: {
+        name: "Urban Forest Initiative - Seattle",
+        type: "Urban Reforestation",
+        priority: "medium",
+        date: "2024-04-15",
+        description: "Community tree planting event to increase urban canopy coverage.",
+        eventType: "treePlanting",
+        trees: 500
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [-122.4, 47.7],
+          [-122.2, 47.7],
+          [-122.2, 47.5],
+          [-122.4, 47.5],
+          [-122.4, 47.7]
+        ]]
+      }
+    },
+    {
+      type: "Feature",
+      properties: {
+        name: "Portland Green Streets",
+        type: "Street Tree Planting",
+        priority: "low",
+        date: "2024-05-01",
+        description: "Street tree planting program to improve air quality and reduce urban heat island effect.",
+        eventType: "treePlanting",
+        trees: 300
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [-122.7, 45.6],
+          [-122.5, 45.6],
+          [-122.5, 45.4],
+          [-122.7, 45.4],
+          [-122.7, 45.6]
+        ]]
+      }
+    },
+    {
+      type: "Feature",
+      properties: {
+        name: "Austin Green Belt Restoration",
+        type: "Natural Area Restoration",
+        priority: "medium",
+        date: "2024-03-20",
+        description: "Native tree planting event to restore natural habitat.",
+        eventType: "treePlanting",
+        trees: 1000
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [-97.8, 30.3],
+          [-97.6, 30.3],
+          [-97.6, 30.1],
+          [-97.8, 30.1],
+          [-97.8, 30.3]
         ]]
       }
     }

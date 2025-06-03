@@ -28,8 +28,19 @@ const MapView: React.FC = () => {
   }, [dateRange]);
 
   const getFeatureStyle = (feature: any) => {
-    const priority = feature.properties.priority;
+    const { priority, eventType } = feature.properties;
     let fillColor;
+    
+    if (eventType === 'treePlanting') {
+      return {
+        fillColor: '#059669', // emerald-600
+        weight: 2,
+        opacity: 1,
+        color: '#065f46', // emerald-800
+        dashArray: '3',
+        fillOpacity: 0.5
+      };
+    }
     
     switch (priority) {
       case 'high':
@@ -57,14 +68,26 @@ const MapView: React.FC = () => {
 
   const onEachFeature = (feature: any, layer: any) => {
     if (feature.properties) {
-      layer.bindTooltip(`
-        <div>
-          <strong>${feature.properties.name}</strong><br/>
-          <span>Type: ${feature.properties.type}</span><br/>
-          <span>Priority: ${feature.properties.priority}</span><br/>
-          <span>Date: ${new Date(feature.properties.date).toLocaleDateString()}</span>
-        </div>
-      `, { sticky: true });
+      const { eventType, trees } = feature.properties;
+      const tooltipContent = eventType === 'treePlanting'
+        ? `
+          <div>
+            <strong>${feature.properties.name}</strong><br/>
+            <span>Type: ${feature.properties.type}</span><br/>
+            <span>Trees to Plant: ${trees}</span><br/>
+            <span>Date: ${new Date(feature.properties.date).toLocaleDateString()}</span>
+          </div>
+        `
+        : `
+          <div>
+            <strong>${feature.properties.name}</strong><br/>
+            <span>Type: ${feature.properties.type}</span><br/>
+            <span>Priority: ${feature.properties.priority}</span><br/>
+            <span>Date: ${new Date(feature.properties.date).toLocaleDateString()}</span>
+          </div>
+        `;
+      
+      layer.bindTooltip(tooltipContent, { sticky: true });
     }
   };
 
@@ -78,7 +101,7 @@ const MapView: React.FC = () => {
       </div>
       
       <MapContainer
-        center={[39.8283, -98.5795]} // Center of the continental US
+        center={[39.8283, -98.5795]}
         zoom={4}
         style={{ height: '100%', width: '100%' }}
         zoomControl={false}
