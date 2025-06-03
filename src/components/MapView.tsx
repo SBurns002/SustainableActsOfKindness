@@ -28,8 +28,7 @@ const MapView: React.FC = () => {
   }, [dateRange]);
 
   const getFeatureStyle = (feature: any) => {
-    const { priority, eventType } = feature.properties;
-    let fillColor;
+    const { eventType } = feature.properties;
     
     if (eventType === 'treePlanting') {
       return {
@@ -42,27 +41,14 @@ const MapView: React.FC = () => {
       };
     }
     
-    switch (priority) {
-      case 'high':
-        fillColor = '#EF4444'; // red
-        break;
-      case 'medium':
-        fillColor = '#F59E0B'; // amber
-        break;
-      case 'low':
-        fillColor = '#10B981'; // green
-        break;
-      default:
-        fillColor = '#6B7280'; // gray
-    }
-    
+    // Environmental cleanup style
     return {
-      fillColor,
+      fillColor: '#0EA5E9', // sky-500
       weight: 2,
       opacity: 1,
-      color: 'white',
+      color: '#0369A1', // sky-700
       dashArray: '3',
-      fillOpacity: 0.7
+      fillOpacity: 0.5
     };
   };
 
@@ -82,7 +68,6 @@ const MapView: React.FC = () => {
           <div>
             <strong>${feature.properties.name}</strong><br/>
             <span>Type: ${feature.properties.type}</span><br/>
-            <span>Priority: ${feature.properties.priority}</span><br/>
             <span>Date: ${new Date(feature.properties.date).toLocaleDateString()}</span>
           </div>
         `;

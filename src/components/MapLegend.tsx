@@ -22,37 +22,40 @@ const MapLegend: React.FC = () => {
             <ChevronDown className="w-5 h-5 text-gray-600" />
           </div>
 
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-3 text-gray-800">Tree Planting Events</h3>
-            <div className="flex items-center">
-              <div className="w-6 h-6 rounded mr-2" style={{ backgroundColor: '#059669', border: '2px solid #065f46' }}></div>
-              <span className="text-sm">Tree Planting Location</span>
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-3 text-gray-800">Event Types</h3>
+              <div className="space-y-3">
+                <div className="flex items-center">
+                  <div className="w-6 h-6 rounded mr-2" style={{ backgroundColor: '#059669', border: '2px solid #065f46' }}></div>
+                  <span className="text-sm">Tree Planting Location</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-6 h-6 rounded mr-2" style={{ backgroundColor: '#0EA5E9', border: '2px solid #0369A1' }}></div>
+                  <span className="text-sm">Environmental Cleanup Site</span>
+                </div>
+              </div>
             </div>
-          </div>
 
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-3 text-gray-800">Environmental Cleanup</h3>
-            <div className="flex items-center space-x-2 mb-2">
-              <Recycle className="w-5 h-5 text-emerald-600" />
-              <span className="text-sm">General Environmental Cleanup</span>
-            </div>
-            <div className="space-y-2 pl-7">
-              <div className="text-sm text-gray-600">Types of Cleanup:</div>
-              <div className="flex items-center">
-                <Droplets className="w-5 h-5 mr-2 text-blue-600" />
-                <span className="text-sm">Water Pollution</span>
-              </div>
-              <div className="flex items-center">
-                <Tree className="w-5 h-5 mr-2 text-green-600" />
-                <span className="text-sm">Habitat Restoration</span>
-              </div>
-              <div className="flex items-center">
-                <Trash2 className="w-5 h-5 mr-2 text-purple-600" />
-                <span className="text-sm">General Waste</span>
-              </div>
-              <div className="flex items-center">
-                <Leaf className="w-5 h-5 mr-2 text-emerald-600" />
-                <span className="text-sm">Tree Planting</span>
+            <div>
+              <h3 className="text-lg font-semibold mb-3 text-gray-800">Cleanup Categories</h3>
+              <div className="space-y-2">
+                <div className="flex items-center">
+                  <Droplets className="w-5 h-5 mr-2 text-blue-600" />
+                  <span className="text-sm">Water Pollution</span>
+                </div>
+                <div className="flex items-center">
+                  <Tree className="w-5 h-5 mr-2 text-green-600" />
+                  <span className="text-sm">Habitat Restoration</span>
+                </div>
+                <div className="flex items-center">
+                  <Trash2 className="w-5 h-5 mr-2 text-purple-600" />
+                  <span className="text-sm">General Waste</span>
+                </div>
+                <div className="flex items-center">
+                  <Leaf className="w-5 h-5 mr-2 text-emerald-600" />
+                  <span className="text-sm">Tree Planting</span>
+                </div>
               </div>
             </div>
           </div>
@@ -64,11 +67,10 @@ const MapLegend: React.FC = () => {
           </div>
         </>
       ) : (
-        <div className="flex items-center">
-          <div className="flex space-x-1">
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: '#059669', border: '1px solid #065f46' }}></div>
-          </div>
-          <ChevronUp className="w-5 h-5 text-gray-600 ml-2" />
+        <div className="flex items-center space-x-2">
+          <div className="w-4 h-4 rounded" style={{ backgroundColor: '#059669', border: '1px solid #065f46' }}></div>
+          <div className="w-4 h-4 rounded" style={{ backgroundColor: '#0EA5E9', border: '1px solid #0369A1' }}></div>
+          <ChevronUp className="w-5 h-5 text-gray-600" />
         </div>
       )}
     </div>
