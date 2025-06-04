@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Calendar, Users, MapPin, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { cleanupData } from '../data/cleanupData';
 
 const EventDetails: React.FC = () => {
   const { id } = useParams();
@@ -13,6 +14,12 @@ const EventDetails: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // Find the event in the cleanupData
+    const eventData = cleanupData.features.find(
+      feature => feature.properties.name === decodeURIComponent(id || '')
+    );
+    setEvent(eventData);
+
     const fetchEventDetails = async () => {
       try {
         // Get participant count
@@ -79,7 +86,11 @@ const EventDetails: React.FC = () => {
     }
   };
 
-  if (!event) return <div>Loading...</div>;
+  if (!event) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-gray-600">Event not found</div>
+    </div>
+  );
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -96,7 +107,7 @@ const EventDetails: React.FC = () => {
               
               <div className="flex items-center">
                 <MapPin className="w-5 h-5 text-emerald-600 mr-3" />
-                <span>{event.properties.location}</span>
+                <span>{event.properties.type}</span>
               </div>
               
               <div className="flex items-center">
