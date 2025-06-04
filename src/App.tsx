@@ -6,6 +6,7 @@ import Header from './components/Header';
 import EventDetails from './components/EventDetails';
 import Auth from './components/Auth';
 import AuthStatus from './components/AuthStatus';
+import Profile from './components/Profile';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
             <Route path="/event/:id" element={<EventDetails />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth-status" element={<AuthStatus />} />
+            <Route path="/profile" element={<Profile />} />
           </Routes>
         </main>
         <Toaster position="top-right" />
@@ -26,4 +28,4 @@ function App() {
   );
 }
 
-export default App
+export default App;
