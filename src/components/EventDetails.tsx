@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Calendar, Users, MapPin, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Calendar, Users, MapPin, AlertCircle, ArrowLeft, LogIn } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cleanupData } from '../data/cleanupData';
 
@@ -12,6 +12,7 @@ const EventDetails: React.FC = () => {
   const [participantCount, setParticipantCount] = useState(0);
   const [isParticipating, setIsParticipating] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     // Find the event in the cleanupData
@@ -32,6 +33,7 @@ const EventDetails: React.FC = () => {
 
         // Check if user is authenticated
         const { data: { user } } = await supabase.auth.getUser();
+        setIsAuthenticated(!!user);
         
         if (!user) {
           setIsParticipating(false);
@@ -129,7 +131,17 @@ const EventDetails: React.FC = () => {
               <p className="text-gray-600">{event.properties.description}</p>
             </div>
 
-            {!isParticipating && (
+            {!isAuthenticated && (
+              <button
+                onClick={() => navigate('/auth', { state: { returnTo: `/event/${id}` } })}
+                className="mt-8 w-full bg-gray-600 text-white py-3 px-6 rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center"
+              >
+                <LogIn className="w-5 h-5 mr-2" />
+                Sign in to join this event
+              </button>
+            )}
+
+            {isAuthenticated && !isParticipating && (
               <button
                 onClick={handleJoinEvent}
                 disabled={loading}
@@ -139,7 +151,7 @@ const EventDetails: React.FC = () => {
               </button>
             )}
 
-            {isParticipating && (
+            {isAuthenticated && isParticipating && (
               <div className="mt-8 flex items-center text-emerald-600">
                 <AlertCircle className="w-5 h-5 mr-2" />
                 <span>You're registered for this event!</span>
