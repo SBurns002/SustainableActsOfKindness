@@ -40,7 +40,7 @@ const MapView: React.FC = () => {
           opacity: 1,
           color: '#065f46',
           dashArray: '3',
-          fillOpacity: 0.5
+          fillOpacity: 0.7
         };
       case 'garden':
         return {
@@ -49,7 +49,7 @@ const MapView: React.FC = () => {
           opacity: 1,
           color: '#92400E',
           dashArray: '3',
-          fillOpacity: 0.5
+          fillOpacity: 0.7
         };
       default:
         return {
@@ -58,7 +58,7 @@ const MapView: React.FC = () => {
           opacity: 1,
           color: '#0369A1',
           dashArray: '3',
-          fillOpacity: 0.5
+          fillOpacity: 0.7
         };
     }
   };
@@ -101,7 +101,6 @@ const MapView: React.FC = () => {
       
       layer.bindTooltip(tooltipContent, { sticky: true });
       
-      // Add click event handler
       layer.on('click', () => {
         navigate(`/event/${encodeURIComponent(feature.properties.name)}`);
       });
@@ -126,8 +125,8 @@ const MapView: React.FC = () => {
         >
           <ZoomControl position="topright" />
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>'
+            url="https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png"
           />
           
           {filteredData.features.map((feature: any, index: number) => (
