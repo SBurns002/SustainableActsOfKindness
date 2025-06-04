@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Calendar, Users, MapPin, AlertCircle } from 'lucide-react';
+import { Calendar, Users, MapPin, AlertCircle, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cleanupData } from '../data/cleanupData';
 
@@ -94,6 +94,14 @@ const EventDetails: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-6">
+      <button
+        onClick={() => navigate('/')}
+        className="mb-6 flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+      >
+        <ArrowLeft className="w-5 h-5 mr-2" />
+        Back to Map
+      </button>
+
       <div className="bg-white rounded-lg shadow-lg p-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-6">{event.properties.name}</h1>
         
