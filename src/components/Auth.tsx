@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 const Auth: React.FC = () => {
@@ -9,6 +9,7 @@ const Auth: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +30,8 @@ const Auth: React.FC = () => {
         });
         if (error) throw error;
         toast.success('Successfully logged in!');
-        navigate(-1);
+        const returnTo = location.state?.returnTo || '/';
+        navigate(returnTo);
       }
     } catch (error: any) {
       toast.error(error.message);

@@ -61,7 +61,7 @@ const EventDetails: React.FC = () => {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      navigate('/auth');
+      navigate('/auth', { state: { returnTo: `/event/${id}` } });
       return;
     }
 
