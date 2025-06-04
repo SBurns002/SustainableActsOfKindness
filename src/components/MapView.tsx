@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, GeoJSON, Tooltip, ZoomControl } from 'react-leaflet';
+import { useNavigate } from 'react-router-dom';
 import DateRangeFilter from './DateRangeFilter';
 import MapLegend from './MapLegend';
 import { cleanupData } from '../data/cleanupData';
@@ -12,6 +13,7 @@ interface DateRange {
 }
 
 const MapView: React.FC = () => {
+  const navigate = useNavigate();
   const [dateRange, setDateRange] = useState<DateRange>({
     startDate: null,
     endDate: null
@@ -33,28 +35,28 @@ const MapView: React.FC = () => {
     switch (eventType) {
       case 'treePlanting':
         return {
-          fillColor: '#059669', // emerald-600
+          fillColor: '#059669',
           weight: 2,
           opacity: 1,
-          color: '#065f46', // emerald-800
+          color: '#065f46',
           dashArray: '3',
           fillOpacity: 0.5
         };
       case 'garden':
         return {
-          fillColor: '#B45309', // amber-700
+          fillColor: '#B45309',
           weight: 2,
           opacity: 1,
-          color: '#92400E', // amber-800
+          color: '#92400E',
           dashArray: '3',
           fillOpacity: 0.5
         };
       default:
         return {
-          fillColor: '#0EA5E9', // sky-500
+          fillColor: '#0EA5E9',
           weight: 2,
           opacity: 1,
-          color: '#0369A1', // sky-700
+          color: '#0369A1',
           dashArray: '3',
           fillOpacity: 0.5
         };
@@ -98,6 +100,11 @@ const MapView: React.FC = () => {
       }
       
       layer.bindTooltip(tooltipContent, { sticky: true });
+      
+      // Add click event handler
+      layer.on('click', () => {
+        navigate(`/event/${encodeURIComponent(feature.properties.name)}`);
+      });
     }
   };
 
@@ -112,7 +119,7 @@ const MapView: React.FC = () => {
       
       <div className="flex-1">
         <MapContainer
-          center={[42.3601, -71.0589]} // Center on Boston
+          center={[42.3601, -71.0589]}
           zoom={12}
           className="w-full h-full"
           zoomControl={false}
