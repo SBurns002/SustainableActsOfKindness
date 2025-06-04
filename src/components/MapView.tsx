@@ -1,52 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { GoogleMap, LoadScript, Polygon } from '@react-google-maps/api';
+import React, { useState, useEffect } from 'react';
+import { MapContainer, TileLayer, GeoJSON, ZoomControl } from 'react-leaflet';
 import { useNavigate } from 'react-router-dom';
 import DateRangeFilter from './DateRangeFilter';
 import MapLegend from './MapLegend';
 import { cleanupData } from '../data/cleanupData';
 import { filterCleanupDataByDateRange } from '../utils/filterUtils';
+import 'leaflet/dist/leaflet.css';
 
 interface DateRange {
   startDate: Date | null;
   endDate: Date | null;
 }
-
-const mapStyles = {
-  styles: [
-    {
-      featureType: 'all',
-      elementType: 'labels',
-      stylers: [{ visibility: 'off' }]
-    },
-    {
-      featureType: 'administrative',
-      elementType: 'geometry',
-      stylers: [{ visibility: 'off' }]
-    },
-    {
-      featureType: 'road',
-      stylers: [{ visibility: 'off' }]
-    },
-    {
-      featureType: 'transit',
-      stylers: [{ visibility: 'off' }]
-    },
-    {
-      featureType: 'poi',
-      stylers: [{ visibility: 'off' }]
-    },
-    {
-      featureType: 'water',
-      elementType: 'geometry',
-      stylers: [{ color: '#e9e9e9' }]
-    },
-    {
-      featureType: 'landscape',
-      elementType: 'geometry',
-      stylers: [{ color: '#f5f5f5' }]
-    }
-  ]
-};
 
 const MapView: React.FC = () => {
   const navigate = useNavigate();
@@ -55,7 +19,6 @@ const MapView: React.FC = () => {
     endDate: null
   });
   const [filteredData, setFilteredData] = useState(cleanupData);
-  const [map, setMap] = useState<google.maps.Map | null>(null);
 
   useEffect(() => {
     if (dateRange.startDate && dateRange.endDate) {
@@ -66,41 +29,83 @@ const MapView: React.FC = () => {
     }
   }, [dateRange]);
 
-  const getPolygonOptions = (feature: any) => {
+  const getFeatureStyle = (feature: any) => {
     const { eventType } = feature.properties;
     
     switch (eventType) {
       case 'treePlanting':
         return {
           fillColor: '#059669',
-          strokeColor: '#065f46',
-          strokeWeight: 2,
-          fillOpacity: 0.7
+          weight: 2,
+          opacity: 1,
+          color: '#065f46',
+          dashArray: '3',
+          fillOpacity: 0.5
         };
       case 'garden':
         return {
           fillColor: '#B45309',
-          strokeColor: '#92400E',
-          strokeWeight: 2,
-          fillOpacity: 0.7
+          weight: 2,
+          opacity: 1,
+          color: '#92400E',
+          dashArray: '3',
+          fillOpacity: 0.5
         };
       default:
         return {
           fillColor: '#0EA5E9',
-          strokeColor: '#0369A1',
-          strokeWeight: 2,
-          fillOpacity: 0.7
+          weight: 2,
+          opacity: 1,
+          color: '#0369A1',
+          dashArray: '3',
+          fillOpacity: 0.5
         };
     }
   };
 
-  const onLoad = useCallback((map: google.maps.Map) => {
-    setMap(map);
-  }, []);
-
-  const onUnmount = useCallback(() => {
-    setMap(null);
-  }, []);
+  const onEachFeature = (feature: any, layer: any) => {
+    layer.on('click', () => {
+      navigate(`/event/${encodeURIComponent(feature.properties.name)}`);
+    });
+    
+    if (feature.properties) {
+      const { eventType, trees, plots } = feature.properties;
+      let tooltipContent;
+      
+      switch (eventType) {
+        case 'treePlanting':
+          tooltipContent = `
+            <div>
+              <strong>${feature.properties.name}</strong><br/>
+              <span>Type: ${feature.properties.type}</span><br/>
+              <span>Trees to Plant: ${trees}</span><br/>
+              <span>Date: ${new Date(feature.properties.date).toLocaleDateString()}</span>
+            </div>
+          `;
+          break;
+        case 'garden':
+          tooltipContent = `
+            <div>
+              <strong>${feature.properties.name}</strong><br/>
+              <span>Type: ${feature.properties.type}</span><br/>
+              <span>Garden Plots: ${plots}</span><br/>
+              <span>Date: ${new Date(feature.properties.date).toLocaleDateString()}</span>
+            </div>
+          `;
+          break;
+        default:
+          tooltipContent = `
+            <div>
+              <strong>${feature.properties.name}</strong><br/>
+              <span>Type: ${feature.properties.type}</span><br/>
+              <span>Date: ${new Date(feature.properties.date).toLocaleDateString()}</span>
+            </div>
+          `;
+      }
+      
+      layer.bindTooltip(tooltipContent, { sticky: true });
+    }
+  };
 
   return (
     <div className="relative w-full h-full flex flex-col">
@@ -112,32 +117,27 @@ const MapView: React.FC = () => {
       </div>
       
       <div className="flex-1">
-        <LoadScript googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
-          <GoogleMap
-            mapContainerClassName="w-full h-full"
-            center={{ lat: 42.3601, lng: -71.0589 }}
-            zoom={12}
-            options={mapStyles}
-            onLoad={onLoad}
-            onUnmount={onUnmount}
-          >
-            {filteredData.features.map((feature: any, index: number) => {
-              const coordinates = feature.geometry.coordinates[0].map((coord: number[]) => ({
-                lat: coord[1],
-                lng: coord[0]
-              }));
-
-              return (
-                <Polygon
-                  key={`${feature.properties.name}-${index}`}
-                  paths={coordinates}
-                  options={getPolygonOptions(feature)}
-                  onClick={() => navigate(`/event/${encodeURIComponent(feature.properties.name)}`)}
-                />
-              );
-            })}
-          </GoogleMap>
-        </LoadScript>
+        <MapContainer
+          center={[42.3601, -71.0589]}
+          zoom={12}
+          className="w-full h-full"
+          zoomControl={false}
+        >
+          <ZoomControl position="topright" />
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png"
+          />
+          
+          {filteredData.features.map((feature: any, index: number) => (
+            <GeoJSON
+              key={`${feature.properties.name}-${index}`}
+              data={feature}
+              style={getFeatureStyle}
+              onEachFeature={onEachFeature}
+            />
+          ))}
+        </MapContainer>
       </div>
       
       <div className="absolute bottom-4 right-4 z-[1000]">
