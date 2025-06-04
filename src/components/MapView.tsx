@@ -35,30 +35,30 @@ const MapView: React.FC = () => {
     switch (eventType) {
       case 'treePlanting':
         return {
-          fillColor: '#059669',
+          fillColor: '#10b981',
           weight: 2,
           opacity: 1,
-          color: '#065f46',
-          dashArray: '3',
-          fillOpacity: 0.5
+          color: '#047857',
+          dashArray: '',
+          fillOpacity: 0.7
         };
       case 'garden':
         return {
-          fillColor: '#B45309',
+          fillColor: '#f59e0b',
           weight: 2,
           opacity: 1,
-          color: '#92400E',
-          dashArray: '3',
-          fillOpacity: 0.5
+          color: '#b45309',
+          dashArray: '',
+          fillOpacity: 0.7
         };
       default:
         return {
-          fillColor: '#0EA5E9',
+          fillColor: '#3b82f6',
           weight: 2,
           opacity: 1,
-          color: '#0369A1',
-          dashArray: '3',
-          fillOpacity: 0.5
+          color: '#1d4ed8',
+          dashArray: '',
+          fillOpacity: 0.7
         };
     }
   };
@@ -126,7 +126,7 @@ const MapView: React.FC = () => {
           <ZoomControl position="topright" />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png"
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           
           {filteredData.features.map((feature: any, index: number) => (
