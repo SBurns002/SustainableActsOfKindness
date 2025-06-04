@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, LogIn, UserCircle, LogOut } from 'lucide-react';
+import { MapPin, LogIn, UserCircle, LogOut, User } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
@@ -57,6 +57,13 @@ const Header: React.FC = () => {
                 <div className="px-4 py-2 text-sm text-gray-700 border-b border-gray-100">
                   {userEmail}
                 </div>
+                <Link
+                  to="/profile"
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                >
+                  <User className="h-4 w-4 mr-2" />
+                  Profile
+                </Link>
                 <button
                   onClick={handleSignOut}
                   className="w-full px-4 py-2 text-sm text-left text-red-600 hover:bg-gray-50 flex items-center"
