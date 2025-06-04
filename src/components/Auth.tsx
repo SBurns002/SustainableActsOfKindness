@@ -20,9 +20,25 @@ const Auth: React.FC = () => {
         const { error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth-status`,
+            data: {
+              email_confirm: false
+            }
+          }
         });
         if (error) throw error;
-        toast.success('Check your email to confirm your account!');
+        
+        // Sign in immediately after sign up
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (signInError) throw signInError;
+        
+        toast.success('Successfully signed up and logged in!');
+        const returnTo = location.state?.returnTo || '/';
+        navigate(returnTo);
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
