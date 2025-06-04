@@ -5,6 +5,7 @@ import MapView from './components/MapView';
 import Header from './components/Header';
 import EventDetails from './components/EventDetails';
 import Auth from './components/Auth';
+import AuthStatus from './components/AuthStatus';
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
             <Route path="/" element={<MapView />} />
             <Route path="/event/:id" element={<EventDetails />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/auth-status" element={<AuthStatus />} />
           </Routes>
         </main>
         <Toaster position="top-right" />
@@ -23,5 +25,3 @@ function App() {
     </Router>
   );
 }
-
-export default App;
