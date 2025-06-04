@@ -14,21 +14,36 @@ const EventDetails: React.FC = () => {
 
   useEffect(() => {
     const fetchEventDetails = async () => {
-      const { data: participantsData } = await supabase
-        .from('event_participants')
-        .select('id')
-        .eq('event_id', id);
+      try {
+        // Get participant count
+        const { data: participantsData } = await supabase
+          .from('event_participants')
+          .select('id')
+          .eq('event_id', id);
 
-      setParticipantCount(participantsData?.length || 0);
+        setParticipantCount(participantsData?.length || 0);
 
-      const { data: userParticipation } = await supabase
-        .from('event_participants')
-        .select('id')
-        .eq('event_id', id)
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
-        .single();
+        // Check if user is authenticated
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          setIsParticipating(false);
+          return;
+        }
 
-      setIsParticipating(!!userParticipation);
+        // Only check user participation if user is logged in
+        const { data: userParticipation } = await supabase
+          .from('event_participants')
+          .select('id')
+          .eq('event_id', id)
+          .eq('user_id', user.id)
+          .single();
+
+        setIsParticipating(!!userParticipation);
+      } catch (error) {
+        console.error('Error fetching event details:', error);
+        toast.error('Failed to load event details');
+      }
     };
 
     fetchEventDetails();
