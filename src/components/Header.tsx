@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, LogIn, UserCircle } from 'lucide-react';
+import { MapPin, LogIn, UserCircle, LogOut } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
@@ -25,6 +25,11 @@ const Header: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate('/');
+  };
+
   return (
     <header className="bg-emerald-700 text-white shadow-md py-4 px-6 relative z-[9999]">
       <div className="container mx-auto flex justify-between items-center">
@@ -48,8 +53,17 @@ const Header: React.FC = () => {
               <div className="flex items-center text-emerald-200 cursor-pointer">
                 <UserCircle className="h-6 w-6" />
               </div>
-              <div className="absolute right-0 mt-2 w-48 bg-white text-gray-800 rounded-lg shadow-lg py-2 px-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 text-sm z-50">
-                {userEmail}
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                <div className="px-4 py-2 text-sm text-gray-700 border-b border-gray-100">
+                  {userEmail}
+                </div>
+                <button
+                  onClick={handleSignOut}
+                  className="w-full px-4 py-2 text-sm text-left text-red-600 hover:bg-gray-50 flex items-center"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
+                </button>
               </div>
             </div>
           ) : (
