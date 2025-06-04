@@ -1,24 +1,51 @@
-import React from 'react';
-import { MapPin } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { MapPin, LogIn, UserCircle } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 
 const Header: React.FC = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(!!session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   return (
     <header className="bg-emerald-700 text-white shadow-md py-4 px-6">
       <div className="container mx-auto flex justify-between items-center">
-        <div className="flex items-center space-x-2">
+        <Link to="/" className="flex items-center space-x-2">
           <MapPin className="h-6 w-6" />
           <h1 className="text-xl font-bold">Environmental Cleanup Map</h1>
-        </div>
+        </Link>
         
-        <div className="hidden md:block">
-          <nav>
+        <div className="flex items-center space-x-6">
+          <nav className="hidden md:block">
             <ul className="flex space-x-6">
-              <li><a href="#" className="hover:text-emerald-200 transition-colors">Home</a></li>
+              <li><Link to="/" className="hover:text-emerald-200 transition-colors">Home</Link></li>
               <li><a href="#" className="hover:text-emerald-200 transition-colors">About</a></li>
               <li><a href="#" className="hover:text-emerald-200 transition-colors">Resources</a></li>
               <li><a href="#" className="hover:text-emerald-200 transition-colors">Contact</a></li>
             </ul>
           </nav>
+
+          {isAuthenticated ? (
+            <div className="flex items-center text-emerald-200">
+              <UserCircle className="h-6 w-6" />
+            </div>
+          ) : (
+            <button
+              onClick={() => navigate('/auth')}
+              className="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-lg transition-colors"
+            >
+              <LogIn className="h-5 w-5" />
+              <span>Login / Sign Up</span>
+            </button>
+          )}
         </div>
         
         <button className="block md:hidden">
