@@ -44,7 +44,7 @@ const EventDetails: React.FC = () => {
           .select('id')
           .eq('event_id', id)
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         setIsParticipating(!!userParticipation);
       } catch (error) {
