@@ -26,7 +26,7 @@ const Header: React.FC = () => {
   }, []);
 
   return (
-    <header className="bg-emerald-700 text-white shadow-md py-4 px-6">
+    <header className="bg-emerald-700 text-white shadow-md py-4 px-6 relative z-[9999]">
       <div className="container mx-auto flex justify-between items-center">
         <Link to="/" className="flex items-center space-x-2">
           <MapPin className="h-6 w-6" />
@@ -48,7 +48,7 @@ const Header: React.FC = () => {
               <div className="flex items-center text-emerald-200 cursor-pointer">
                 <UserCircle className="h-6 w-6" />
               </div>
-              <div className="absolute right-0 mt-2 w-48 bg-white text-gray-800 rounded-lg shadow-lg py-2 px-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 text-sm">
+              <div className="absolute right-0 mt-2 w-48 bg-white text-gray-800 rounded-lg shadow-lg py-2 px-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 text-sm z-50">
                 {userEmail}
               </div>
             </div>
