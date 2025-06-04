@@ -5,12 +5,22 @@ import { supabase } from '../lib/supabase';
 
 const Header: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setIsAuthenticated(!!session);
+      setUserEmail(session?.user?.email || null);
     });
+
+    // Get initial auth state
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsAuthenticated(!!user);
+      setUserEmail(user?.email || null);
+    };
+    checkAuth();
 
     return () => subscription.unsubscribe();
   }, []);
@@ -34,8 +44,13 @@ const Header: React.FC = () => {
           </nav>
 
           {isAuthenticated ? (
-            <div className="flex items-center text-emerald-200">
-              <UserCircle className="h-6 w-6" />
+            <div className="relative group">
+              <div className="flex items-center text-emerald-200 cursor-pointer">
+                <UserCircle className="h-6 w-6" />
+              </div>
+              <div className="absolute right-0 mt-2 w-48 bg-white text-gray-800 rounded-lg shadow-lg py-2 px-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 text-sm">
+                {userEmail}
+              </div>
             </div>
           ) : (
             <button
