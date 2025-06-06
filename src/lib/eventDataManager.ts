@@ -17,6 +17,7 @@ interface EventUpdate {
   organizer_name: string;
   organizer_contact?: string;
   status: string;
+  created_by: string;
   updated_at: string;
 }
 
@@ -67,6 +68,7 @@ class EventDataManager {
           organizer_name: event.organizer_name,
           organizer_contact: event.organizer_contact,
           status: event.status,
+          created_by: event.created_by,
           updated_at: event.updated_at
         });
       });
@@ -129,13 +131,31 @@ class EventDataManager {
   // Update an event (called from admin dashboard)
   async updateEvent(eventId: string, eventData: any) {
     try {
+      // First, get the existing event to preserve the created_by field
+      const { data: existingEvent, error: fetchError } = await supabase
+        .from('events')
+        .select('created_by')
+        .eq('id', eventId)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching existing event:', fetchError);
+        throw fetchError;
+      }
+
+      if (!existingEvent?.created_by) {
+        throw new Error('Cannot update event: original created_by field is missing');
+      }
+
+      // Update the event while preserving the created_by field
       const { data, error } = await supabase
         .from('events')
-        .upsert({
-          id: eventId,
+        .update({
           ...eventData,
+          created_by: existingEvent.created_by, // Preserve the original creator
           updated_at: new Date().toISOString()
         })
+        .eq('id', eventId)
         .select()
         .single();
 
@@ -158,6 +178,7 @@ class EventDataManager {
         organizer_name: data.organizer_name,
         organizer_contact: data.organizer_contact,
         status: data.status,
+        created_by: data.created_by,
         updated_at: data.updated_at
       });
 
