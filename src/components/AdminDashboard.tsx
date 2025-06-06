@@ -115,7 +115,7 @@ const AdminDashboard: React.FC = () => {
         .select('role')
         .eq('user_id', user.id)
         .eq('role', 'admin')
-        .single();
+        .maybeSingle();
 
       if (error || !roles) {
         toast.error('Access denied. Administrator privileges required.');

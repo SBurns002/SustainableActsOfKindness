@@ -30,7 +30,7 @@ const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
         .select('role')
         .eq('user_id', user.id)
         .eq('role', 'admin')
-        .single();
+        .maybeSingle();
 
       if (error || !roles) {
         setIsAdmin(false);
