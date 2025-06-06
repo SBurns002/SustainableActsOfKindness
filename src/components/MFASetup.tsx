@@ -138,6 +138,16 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
     }
   };
 
+  // Create a timeout wrapper for async operations
+  const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) => 
+        setTimeout(() => reject(new Error('Operation timed out')), timeoutMs)
+      )
+    ]);
+  };
+
   const verifyAndEnable = async () => {
     if (!factorId || !verificationCode) {
       setError('Missing verification information');
@@ -160,10 +170,9 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
         attempt: retryCount + 1
       });
 
-      // Step 1: Create challenge
-      const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
-        factorId
-      });
+      // Step 1: Create challenge with timeout
+      const challengePromise = supabase.auth.mfa.challenge({ factorId });
+      const { data: challengeData, error: challengeError } = await withTimeout(challengePromise, 15000);
 
       if (challengeError) {
         console.error('Challenge creation failed:', challengeError);
@@ -184,29 +193,38 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
       console.log('Challenge created successfully:', challengeData.id);
       setDebugInfo('Challenge created. Verifying your code...');
 
-      // Step 2: Wait for challenge to be ready (important!)
+      // Step 2: Wait for challenge to be ready
       await new Promise(resolve => setTimeout(resolve, 1500));
 
-      // Step 3: Verify the code with detailed response logging
+      // Step 3: Verify the code with timeout and detailed logging
       console.log('Attempting verification with:', {
         factorId: factorId.substring(0, 8) + '...',
         challengeId: challengeData.id.substring(0, 8) + '...',
         code: verificationCode.replace(/./g, '*')
       });
 
-      const verifyResponse = await supabase.auth.mfa.verify({
+      setDebugInfo('Sending verification request...');
+
+      // Add timeout to the verification call
+      const verifyPromise = supabase.auth.mfa.verify({
         factorId,
         challengeId: challengeData.id,
         code: verificationCode.trim()
       });
 
-      // Log the complete response for debugging
-      console.log('MFA Verify Response:', {
-        data: verifyResponse.data,
-        error: verifyResponse.error,
-        hasData: !!verifyResponse.data,
-        hasError: !!verifyResponse.error
-      });
+      let verifyResponse;
+      try {
+        verifyResponse = await withTimeout(verifyPromise, 20000); // 20 second timeout
+        console.log('MFA Verify Response received:', {
+          data: verifyResponse.data,
+          error: verifyResponse.error,
+          hasData: !!verifyResponse.data,
+          hasError: !!verifyResponse.error
+        });
+      } catch (timeoutError) {
+        console.error('Verification timed out:', timeoutError);
+        throw new Error('Verification request timed out. Please check your internet connection and try again.');
+      }
 
       // Check for errors first
       if (verifyResponse.error) {
@@ -226,53 +244,55 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
         }
       }
 
-      // Check if we got a successful response - handle both data and no-data success cases
-      if (verifyResponse.data || (!verifyResponse.error && verifyResponse.data !== false)) {
-        console.log('Verification successful! Response data:', verifyResponse.data);
-        setDebugInfo('Verification successful! Confirming MFA status...');
+      // Check if we got a successful response
+      console.log('Verification successful! Response data:', verifyResponse.data);
+      setDebugInfo('Verification successful! Confirming MFA status...');
 
-        // Step 4: Verify the factor is now active
-        try {
-          const { data: updatedFactors, error: factorsError } = await supabase.auth.mfa.listFactors();
-          
-          if (!factorsError && updatedFactors?.totp) {
-            const verifiedFactor = updatedFactors.totp.find(f => f.id === factorId && f.status === 'verified');
-            if (verifiedFactor) {
-              console.log('MFA successfully enabled and verified:', verifiedFactor);
-              setStep('success');
-              setDebugInfo('Two-factor authentication is now active!');
-              toast.success('Two-factor authentication enabled successfully!');
-              
-              setTimeout(() => {
-                onComplete();
-              }, 2000);
-              return;
-            } else {
-              console.warn('Factor not found in verified state, but verification succeeded');
-            }
-          }
-        } catch (factorCheckError) {
-          console.warn('Could not verify factor status, but verification succeeded:', factorCheckError);
-        }
-
-        // Fallback success handling if factor check fails
-        console.log('Verification completed successfully (fallback success)');
-        setStep('success');
-        setDebugInfo('Two-factor authentication enabled!');
-        toast.success('Two-factor authentication enabled successfully!');
+      // Step 4: Verify the factor is now active with timeout
+      try {
+        const factorsPromise = supabase.auth.mfa.listFactors();
+        const { data: updatedFactors, error: factorsError } = await withTimeout(factorsPromise, 10000);
         
-        setTimeout(() => {
-          onComplete();
-        }, 2000);
-      } else {
-        // No data and no error - this is unusual
-        console.warn('MFA verify returned neither data nor error:', verifyResponse);
-        throw new Error('Verification response was empty. Please try again.');
+        if (!factorsError && updatedFactors?.totp) {
+          const verifiedFactor = updatedFactors.totp.find(f => f.id === factorId && f.status === 'verified');
+          if (verifiedFactor) {
+            console.log('MFA successfully enabled and verified:', verifiedFactor);
+            setStep('success');
+            setDebugInfo('Two-factor authentication is now active!');
+            toast.success('Two-factor authentication enabled successfully!');
+            
+            setTimeout(() => {
+              onComplete();
+            }, 2000);
+            return;
+          } else {
+            console.warn('Factor not found in verified state, but verification succeeded');
+          }
+        }
+      } catch (factorCheckError) {
+        console.warn('Could not verify factor status, but verification succeeded:', factorCheckError);
       }
+
+      // Fallback success handling if factor check fails
+      console.log('Verification completed successfully (fallback success)');
+      setStep('success');
+      setDebugInfo('Two-factor authentication enabled!');
+      toast.success('Two-factor authentication enabled successfully!');
+      
+      setTimeout(() => {
+        onComplete();
+      }, 2000);
       
     } catch (err: any) {
       console.error('Verification error:', err);
-      setError(err.message || 'Verification failed. Please try again.');
+      
+      // Handle timeout specifically
+      if (err.message?.includes('timed out')) {
+        setError('The verification request timed out. This might be due to a slow connection or server issues. Please try again.');
+      } else {
+        setError(err.message || 'Verification failed. Please try again.');
+      }
+      
       setVerificationCode('');
       setDebugInfo('');
     } finally {
@@ -359,6 +379,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
                       <li>Make sure your device's time is correct</li>
                       <li>Try a different authenticator app</li>
                       <li>Wait 30 seconds for a new code</li>
+                      <li>Check your internet connection</li>
                       <li>Restart the setup process</li>
                     </ul>
                   </div>
@@ -518,6 +539,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
                     <RefreshCw className="w-4 h-4 animate-spin" />
                     {debugInfo.includes('Creating') ? 'Creating...' : 
                      debugInfo.includes('Challenge created') ? 'Verifying...' : 
+                     debugInfo.includes('Sending') ? 'Sending...' :
                      debugInfo.includes('Verification successful') ? 'Confirming...' : 'Processing...'}
                   </>
                 ) : (
