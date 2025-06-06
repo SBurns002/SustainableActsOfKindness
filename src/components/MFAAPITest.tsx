@@ -175,8 +175,8 @@ export default function MFAAPITest() {
           code: '000000' // Invalid code
         });
         
-        // We expect this to fail with invalid_code error
-        if (error && error.message?.includes('invalid_code')) {
+        // We expect this to fail with invalid code error - check for both possible error messages
+        if (error && (error.message?.includes('invalid_code') || error.message?.includes('Invalid TOTP code entered'))) {
           return { expectedError: true, error: error.message };
         } else if (data) {
           throw new Error('Verification unexpectedly succeeded with invalid code');
