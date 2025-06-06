@@ -11,6 +11,9 @@ export const cleanupData = {
         type: "Water Pollution",
         priority: "high",
         date: "2025-07-05",
+        time: "9:00 AM - 3:00 PM",
+        location: "Charles River Esplanade, Boston, MA",
+        address: "100 Storrow Drive, Boston, MA 02116",
         description: "Urban river cleanup focusing on plastic pollution and industrial runoff in the Charles River.",
         eventType: "cleanup"
       },
@@ -32,6 +35,9 @@ export const cleanupData = {
         type: "Mixed Pollution",
         priority: "medium",
         date: "2025-07-15",
+        time: "8:30 AM - 4:30 PM",
+        location: "Spectacle Island, Boston Harbor",
+        address: "Ferry departure from Long Wharf, Boston, MA 02110",
         description: "Marine ecosystem restoration and debris removal around Boston Harbor Islands.",
         eventType: "cleanup"
       },
@@ -53,6 +59,9 @@ export const cleanupData = {
         type: "Urban Reforestation",
         priority: "medium",
         date: "2025-07-20",
+        time: "10:00 AM - 2:00 PM",
+        location: "Franklin Park, Boston, MA",
+        address: "1 Franklin Park Rd, Boston, MA 02121",
         description: "Community tree planting event along Boston's historic park system.",
         eventType: "treePlanting",
         trees: 250
@@ -75,6 +84,9 @@ export const cleanupData = {
         type: "Street Tree Planting",
         priority: "low",
         date: "2025-08-01",
+        time: "9:00 AM - 1:00 PM",
+        location: "Cambridge Common, Cambridge, MA",
+        address: "Cambridge Common, Cambridge, MA 02138",
         description: "Street tree planting program in Cambridge neighborhoods.",
         eventType: "treePlanting",
         trees: 175
@@ -97,6 +109,9 @@ export const cleanupData = {
         type: "Water Pollution",
         priority: "high",
         date: "2025-08-15",
+        time: "7:00 AM - 5:00 PM",
+        location: "Lake Michigan Shoreline, Chicago, IL",
+        address: "North Avenue Beach, Chicago, IL 60614",
         description: "Plastic waste accumulation in the Great Lakes region affecting wildlife and water quality.",
         eventType: "cleanup"
       },
@@ -118,6 +133,9 @@ export const cleanupData = {
         type: "Oil Pollution",
         priority: "high",
         date: "2025-07-22",
+        time: "6:00 AM - 4:00 PM",
+        location: "Gulf Shores State Park, Alabama",
+        address: "20115 State Hwy 135, Gulf Shores, AL 36542",
         description: "Remaining contamination from historical oil spills requiring remediation.",
         eventType: "cleanup"
       },
@@ -139,6 +157,9 @@ export const cleanupData = {
         type: "Chemical Contamination",
         priority: "medium",
         date: "2025-08-03",
+        time: "8:00 AM - 4:00 PM",
+        location: "Liberty State Park, Jersey City, NJ",
+        address: "200 Morris Pesin Dr, Jersey City, NJ 07305",
         description: "Former industrial sites with soil contamination requiring remediation.",
         eventType: "cleanup"
       },
@@ -160,6 +181,9 @@ export const cleanupData = {
         type: "Ash and Debris",
         priority: "medium",
         date: "2025-07-15",
+        time: "7:30 AM - 3:30 PM",
+        location: "Napa Valley State Park, California",
+        address: "3801 St Helena Hwy N, Calistoga, CA 94515",
         description: "Post-wildfire cleanup of ash and debris that could contaminate water sources.",
         eventType: "cleanup"
       },
@@ -181,6 +205,9 @@ export const cleanupData = {
         type: "Heavy Metal Contamination",
         priority: "high",
         date: "2025-08-05",
+        time: "8:00 AM - 5:00 PM",
+        location: "Rocky Mountain National Park, Colorado",
+        address: "1000 US Hwy 36, Estes Park, CO 80517",
         description: "Abandoned mines leaching heavy metals into local water systems.",
         eventType: "cleanup"
       },
@@ -202,6 +229,9 @@ export const cleanupData = {
         type: "Deforestation",
         priority: "low",
         date: "2025-07-20",
+        time: "9:00 AM - 4:00 PM",
+        location: "Mount Hood National Forest, Oregon",
+        address: "16400 Champion Way, Sandy, OR 97055",
         description: "Areas requiring reforestation and habitat restoration.",
         eventType: "cleanup"
       },
@@ -223,6 +253,9 @@ export const cleanupData = {
         type: "Industrial Waste",
         priority: "medium",
         date: "2025-07-18",
+        time: "8:30 AM - 3:30 PM",
+        location: "Shawnee State Park, Ohio",
+        address: "4404 State Route 125, West Portsmouth, OH 45663",
         description: "Former industrial waste disposal site requiring containment and cleanup.",
         eventType: "cleanup"
       },
@@ -244,6 +277,9 @@ export const cleanupData = {
         type: "Habitat Degradation",
         priority: "medium",
         date: "2025-08-01",
+        time: "7:00 AM - 3:00 PM",
+        location: "Everglades National Park, Florida",
+        address: "40001 State Road 9336, Homestead, FL 33034",
         description: "Restoration of natural water flow and removal of invasive species.",
         eventType: "cleanup"
       },
@@ -265,6 +301,9 @@ export const cleanupData = {
         type: "Chemical Fertilizer",
         priority: "low",
         date: "2025-07-10",
+        time: "8:00 AM - 2:00 PM",
+        location: "White Rock Lake Park, Dallas, TX",
+        address: "8300 E Lawther Dr, Dallas, TX 75218",
         description: "Areas affected by agricultural chemical runoff requiring mitigation.",
         eventType: "cleanup"
       },
@@ -286,6 +325,9 @@ export const cleanupData = {
         type: "Soil Contamination",
         priority: "low",
         date: "2025-08-22",
+        time: "9:00 AM - 4:00 PM",
+        location: "Glacier National Park, Montana",
+        address: "64 Grinnell Dr, West Glacier, MT 59936",
         description: "Former mining sites requiring soil remediation and native plant restoration.",
         eventType: "cleanup"
       },
@@ -307,6 +349,9 @@ export const cleanupData = {
         type: "Mixed Pollution",
         priority: "high",
         date: "2025-07-05",
+        time: "8:00 AM - 4:00 PM",
+        location: "Brooklyn Bridge Park, New York",
+        address: "334 Furman St, Brooklyn, NY 11201",
         description: "Urban waterway requiring cleanup of multiple contaminants from historical industrial use.",
         eventType: "cleanup"
       },
@@ -328,6 +373,9 @@ export const cleanupData = {
         type: "Electronic Waste",
         priority: "medium",
         date: "2025-08-12",
+        time: "6:30 AM - 2:30 PM",
+        location: "Papago Park, Phoenix, AZ",
+        address: "625 N Galvin Pkwy, Phoenix, AZ 85008",
         description: "Improper disposal of solar panel components requiring specialized cleanup.",
         eventType: "cleanup"
       },
@@ -349,6 +397,9 @@ export const cleanupData = {
         type: "Urban Reforestation",
         priority: "medium",
         date: "2025-07-15",
+        time: "10:00 AM - 3:00 PM",
+        location: "Discovery Park, Seattle, WA",
+        address: "3801 Discovery Park Blvd, Seattle, WA 98199",
         description: "Community tree planting event to increase urban canopy coverage.",
         eventType: "treePlanting",
         trees: 500
@@ -371,6 +422,9 @@ export const cleanupData = {
         type: "Street Tree Planting",
         priority: "low",
         date: "2025-08-01",
+        time: "9:30 AM - 2:30 PM",
+        location: "Tom McCall Waterfront Park, Portland, OR",
+        address: "98 SW Naito Pkwy, Portland, OR 97204",
         description: "Street tree planting program to improve air quality and reduce urban heat island effect.",
         eventType: "treePlanting",
         trees: 300
@@ -393,6 +447,9 @@ export const cleanupData = {
         type: "Natural Area Restoration",
         priority: "medium",
         date: "2025-07-20",
+        time: "8:00 AM - 1:00 PM",
+        location: "Zilker Park, Austin, TX",
+        address: "2100 Barton Springs Rd, Austin, TX 78746",
         description: "Native tree planting event to restore natural habitat.",
         eventType: "treePlanting",
         trees: 1000
@@ -414,6 +471,9 @@ export const cleanupData = {
         name: "Fenway Victory Gardens",
         type: "Community Garden",
         date: "2025-07-01",
+        time: "10:00 AM - 4:00 PM",
+        location: "Fenway Victory Gardens, Boston, MA",
+        address: "Park Dr & Boylston St, Boston, MA 02215",
         description: "Historic community gardens with over 500 plots for local residents.",
         eventType: "garden",
         plots: 500
@@ -435,6 +495,9 @@ export const cleanupData = {
         name: "Cambridge Community Garden",
         type: "Community Garden",
         date: "2025-08-01",
+        time: "9:00 AM - 3:00 PM",
+        location: "Cambridge Community Gardens, Cambridge, MA",
+        address: "99 Bishop Allen Dr, Cambridge, MA 02139",
         description: "Urban garden promoting sustainable food production and community engagement.",
         eventType: "garden",
         plots: 150
@@ -456,6 +519,9 @@ export const cleanupData = {
         name: "Somerville Growing Center",
         type: "Community Garden",
         date: "2025-07-15",
+        time: "11:00 AM - 5:00 PM",
+        location: "Somerville Community Growing Center, Somerville, MA",
+        address: "22 Vinal Ave, Somerville, MA 02143",
         description: "Educational garden space focusing on sustainable urban agriculture.",
         eventType: "garden",
         plots: 75

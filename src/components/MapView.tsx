@@ -95,7 +95,7 @@ const MapView: React.FC = () => {
     });
     
     if (feature.properties) {
-      const { eventType, trees, plots } = feature.properties;
+      const { eventType, trees, plots, time, location } = feature.properties;
       let tooltipContent;
       
       switch (eventType) {
@@ -105,7 +105,9 @@ const MapView: React.FC = () => {
               <strong>${feature.properties.name}</strong><br/>
               <span>Type: ${feature.properties.type}</span><br/>
               <span>Trees to Plant: ${trees}</span><br/>
-              <span>Date: ${new Date(feature.properties.date).toLocaleDateString()}</span>
+              <span>Date: ${new Date(feature.properties.date).toLocaleDateString()}</span><br/>
+              ${time ? `<span>Time: ${time}</span><br/>` : ''}
+              ${location ? `<span>Location: ${location}</span>` : ''}
             </div>
           `;
           break;
@@ -115,7 +117,9 @@ const MapView: React.FC = () => {
               <strong>${feature.properties.name}</strong><br/>
               <span>Type: ${feature.properties.type}</span><br/>
               <span>Garden Plots: ${plots}</span><br/>
-              <span>Date: ${new Date(feature.properties.date).toLocaleDateString()}</span>
+              <span>Date: ${new Date(feature.properties.date).toLocaleDateString()}</span><br/>
+              ${time ? `<span>Time: ${time}</span><br/>` : ''}
+              ${location ? `<span>Location: ${location}</span>` : ''}
             </div>
           `;
           break;
@@ -124,7 +128,9 @@ const MapView: React.FC = () => {
             <div>
               <strong>${feature.properties.name}</strong><br/>
               <span>Type: ${feature.properties.type}</span><br/>
-              <span>Date: ${new Date(feature.properties.date).toLocaleDateString()}</span>
+              <span>Date: ${new Date(feature.properties.date).toLocaleDateString()}</span><br/>
+              ${time ? `<span>Time: ${time}</span><br/>` : ''}
+              ${location ? `<span>Location: ${location}</span>` : ''}
             </div>
           `;
       }

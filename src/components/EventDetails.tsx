@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Calendar, Users, MapPin, AlertCircle, ArrowLeft, LogIn, UserMinus } from 'lucide-react';
+import { Calendar, Users, MapPin, AlertCircle, ArrowLeft, LogIn, UserMinus, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cleanupData } from '../data/cleanupData';
 
@@ -335,9 +335,21 @@ const EventDetails: React.FC = () => {
                 <span>{new Date(event.properties.date).toLocaleDateString()}</span>
               </div>
               
-              <div className="flex items-center">
-                <MapPin className="w-5 h-5 text-emerald-600 mr-3" />
-                <span>{event.properties.type}</span>
+              {event.properties.time && (
+                <div className="flex items-center">
+                  <Clock className="w-5 h-5 text-emerald-600 mr-3" />
+                  <span>{event.properties.time}</span>
+                </div>
+              )}
+              
+              <div className="flex items-start">
+                <MapPin className="w-5 h-5 text-emerald-600 mr-3 mt-0.5" />
+                <div>
+                  <div className="font-medium">{event.properties.location}</div>
+                  {event.properties.address && (
+                    <div className="text-sm text-gray-600">{event.properties.address}</div>
+                  )}
+                </div>
               </div>
               
               <div className="flex items-center">
@@ -407,6 +419,35 @@ const EventDetails: React.FC = () => {
                 </p>
               </div>
             </div>
+
+            {/* Event Type Specific Information */}
+            {event.properties.eventType === 'treePlanting' && event.properties.trees && (
+              <div className="mt-8">
+                <h3 className="text-lg font-semibold mb-4">Tree Planting Details</h3>
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <p className="text-green-800">
+                    <strong>Target:</strong> {event.properties.trees} trees to be planted
+                  </p>
+                  <p className="text-green-700 mt-2 text-sm">
+                    Native species will be selected to support local ecosystem restoration.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {event.properties.eventType === 'garden' && event.properties.plots && (
+              <div className="mt-8">
+                <h3 className="text-lg font-semibold mb-4">Garden Details</h3>
+                <div className="bg-amber-50 p-4 rounded-lg">
+                  <p className="text-amber-800">
+                    <strong>Available Plots:</strong> {event.properties.plots} garden plots
+                  </p>
+                  <p className="text-amber-700 mt-2 text-sm">
+                    Community garden promoting sustainable food production and education.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
