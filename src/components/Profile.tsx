@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Calendar, Bell, Settings, Loader, Clock, CheckCircle, AlertCircle, UserMinus, Eye, Plus } from 'lucide-react';
+import { Calendar, Bell, Settings, Loader, Clock, CheckCircle, AlertCircle, UserMinus, Eye, Plus, Shield, Smartphone, Key } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cleanupData } from '../data/cleanupData';
+import MFASetup from './MFASetup';
+import MFADisable from './MFADisable';
 
 interface EventParticipation {
   id: string;
@@ -25,6 +27,13 @@ interface EventReminder {
   created_at: string;
 }
 
+interface MFAFactor {
+  id: string;
+  type: string;
+  status: string;
+  created_at: string;
+}
+
 const Profile: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -33,6 +42,10 @@ const Profile: React.FC = () => {
   const [reminders, setReminders] = useState<EventReminder[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [creatingReminders, setCreatingReminders] = useState(false);
+  const [mfaFactors, setMfaFactors] = useState<MFAFactor[]>([]);
+  const [showMfaSetup, setShowMfaSetup] = useState(false);
+  const [showMfaDisable, setShowMfaDisable] = useState(false);
+  const [mfaLoading, setMfaLoading] = useState(false);
 
   const getEventDetails = (eventId: string) => {
     return cleanupData.features.find(
@@ -46,6 +59,21 @@ const Profile: React.FC = () => {
     const diffTime = event.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
+  };
+
+  const fetchMfaFactors = async () => {
+    try {
+      const { data, error } = await supabase.auth.mfa.listFactors();
+      
+      if (error) {
+        console.error('Error fetching MFA factors:', error);
+        return;
+      }
+
+      setMfaFactors(data?.totp || []);
+    } catch (error) {
+      console.error('Error fetching MFA factors:', error);
+    }
   };
 
   const createMissingReminders = async () => {
@@ -153,6 +181,9 @@ const Profile: React.FC = () => {
         setReminders(remindersData || []);
       }
 
+      // Fetch MFA factors
+      await fetchMfaFactors();
+
     } catch (error) {
       console.error('Error fetching user data:', error);
       toast.error('Failed to load profile data');
@@ -175,6 +206,7 @@ const Profile: React.FC = () => {
         setCurrentUser(null);
         setParticipations([]);
         setReminders([]);
+        setMfaFactors([]);
         navigate('/auth');
       }
     });
@@ -418,6 +450,18 @@ const Profile: React.FC = () => {
     }
   };
 
+  const handleMfaSetupComplete = () => {
+    setShowMfaSetup(false);
+    fetchMfaFactors();
+  };
+
+  const handleMfaDisableComplete = () => {
+    setShowMfaDisable(false);
+    fetchMfaFactors();
+  };
+
+  const isMfaEnabled = mfaFactors.some(factor => factor.status === 'verified');
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -446,6 +490,64 @@ const Profile: React.FC = () => {
         </div>
 
         <div className="space-y-8">
+          {/* Security Settings Section */}
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+              <Shield className="w-5 h-5 mr-2" />
+              Security Settings
+            </h2>
+            
+            <div className="bg-gray-50 rounded-lg p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Multi-Factor Authentication</h3>
+                  <p className="text-gray-600 mb-4">
+                    Add an extra layer of security to your account with MFA
+                  </p>
+                  
+                  {isMfaEnabled && (
+                    <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="bg-green-100 p-2 rounded-lg">
+                            <Smartphone className="w-5 h-5 text-green-600" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-gray-900">Authenticator App</h4>
+                            <p className="text-sm text-gray-600">
+                              Added on {new Date(mfaFactors[0]?.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">
+                            Enabled
+                          </span>
+                          <button
+                            onClick={() => setShowMfaDisable(true)}
+                            className="text-red-600 hover:text-red-700 text-sm font-medium"
+                          >
+                            Disable
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {!isMfaEnabled && (
+                  <button
+                    onClick={() => setShowMfaSetup(true)}
+                    disabled={mfaLoading}
+                    className="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                  >
+                    {mfaLoading ? 'Setting up...' : 'Enable MFA'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Event Reminders Section */}
           <div>
             <div className="flex items-center justify-between mb-4">
@@ -684,6 +786,22 @@ const Profile: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* MFA Setup Modal */}
+      {showMfaSetup && (
+        <MFASetup
+          onComplete={handleMfaSetupComplete}
+          onCancel={() => setShowMfaSetup(false)}
+        />
+      )}
+
+      {/* MFA Disable Modal */}
+      {showMfaDisable && (
+        <MFADisable
+          onSuccess={handleMfaDisableComplete}
+          onCancel={() => setShowMfaDisable(false)}
+        />
+      )}
     </div>
   );
 };
