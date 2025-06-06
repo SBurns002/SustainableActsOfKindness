@@ -39,17 +39,16 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
         } else {
           setError(`Failed to initialize MFA challenge: ${error.message}`);
         }
-        setIsLoading(false);
         return;
       }
 
       if (data) {
         setChallengeId(data.id);
-        setIsLoading(false);
       }
     } catch (err) {
       console.error('Unexpected error during MFA challenge initialization:', err);
       setError('An unexpected error occurred. Please try again.');
+    } finally {
       setIsLoading(false);
     }
   };
@@ -82,7 +81,6 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
         }
         
         setVerificationCode('');
-        setIsLoading(false);
         return;
       }
 
@@ -99,12 +97,10 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
         } else {
           setError(`Failed to disable MFA: ${unenrollError.message}`);
         }
-        setIsLoading(false);
         return;
       }
 
       setStep('success');
-      setIsLoading(false);
       toast.success('Two-factor authentication has been successfully disabled.');
       
       // Call onSuccess after a brief delay to show success state
@@ -116,6 +112,7 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
       console.error('Unexpected error during MFA disable:', err);
       setError('An unexpected error occurred. Please try again.');
       setVerificationCode('');
+    } finally {
       setIsLoading(false);
     }
   };
@@ -124,6 +121,7 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
     setError(null);
     setVerificationCode('');
     setChallengeId(null);
+    setIsLoading(false);
     initializeChallenge();
   };
 

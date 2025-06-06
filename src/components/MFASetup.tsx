@@ -31,7 +31,6 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
         const verifiedFactor = factors.totp.find(f => f.status === 'verified');
         if (verifiedFactor) {
           setError('You already have MFA enabled. Please disable it first before setting up a new factor.');
-          setIsLoading(false);
           return;
         }
       }
@@ -53,7 +52,6 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
         } else {
           setError(`Failed to set up MFA: ${error.message}`);
         }
-        setIsLoading(false);
         return;
       }
 
@@ -62,11 +60,11 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
         setSecret(data.totp.secret);
         setFactorId(data.id);
         setStep('scan');
-        setIsLoading(false);
       }
     } catch (err) {
       console.error('Unexpected error during MFA enrollment:', err);
       setError('An unexpected error occurred. Please try again or contact support.');
+    } finally {
       setIsLoading(false);
     }
   };
@@ -99,13 +97,11 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
         } else {
           setError(`Verification failed: ${error.message}`);
         }
-        setIsLoading(false);
         return;
       }
 
       if (data) {
         setStep('success');
-        setIsLoading(false);
         toast.success('Two-factor authentication has been successfully enabled!');
         
         // Call onComplete after a brief delay to show success state
@@ -116,6 +112,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
     } catch (err) {
       console.error('Unexpected error during MFA verification:', err);
       setError('An unexpected error occurred during verification. Please try again.');
+    } finally {
       setIsLoading(false);
     }
   };
@@ -127,6 +124,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
     setVerificationCode('');
     setFactorId(null);
     setStep('initial');
+    setIsLoading(false);
   };
 
   return (
