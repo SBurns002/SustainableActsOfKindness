@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, GeoJSON, ZoomControl } from 'react-leaflet';
 import { useNavigate } from 'react-router-dom';
+import { Home, Info, BookOpen, Mail, LogIn, UserCircle } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import DateRangeFilter from './DateRangeFilter';
 import MapLegend from './MapLegend';
 import { cleanupData } from '../data/cleanupData';
@@ -20,6 +22,7 @@ const MapView: React.FC = () => {
   });
   const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>([]);
   const [filteredData, setFilteredData] = useState(cleanupData);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     let filtered = cleanupData;
@@ -36,6 +39,21 @@ const MapView: React.FC = () => {
 
     setFilteredData(filtered);
   }, [dateRange, selectedEventTypes]);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setIsAuthenticated(!!session);
+    });
+
+    // Get initial auth state
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsAuthenticated(!!user);
+    };
+    checkAuth();
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const getFeatureStyle = (feature: any) => {
     const { eventType } = feature.properties;
@@ -115,9 +133,16 @@ const MapView: React.FC = () => {
     }
   };
 
+  const navigationItems = [
+    { icon: Home, label: 'Home', path: '/' },
+    { icon: Info, label: 'About', path: '/about' },
+    { icon: BookOpen, label: 'Resources', path: '/resources' },
+    { icon: Mail, label: 'Contact', path: '/contact' }
+  ];
+
   return (
     <div className="relative w-full h-full flex">
-      {/* Left sidebar with filters */}
+      {/* Left sidebar with filters and navigation */}
       <div className="w-80 bg-white shadow-lg z-[1001] overflow-y-auto">
         <div className="p-4">
           <DateRangeFilter 
@@ -126,6 +151,42 @@ const MapView: React.FC = () => {
             dateRange={dateRange}
             selectedEventTypes={selectedEventTypes}
           />
+          
+          {/* Navigation Section */}
+          <div className="mt-8 pt-6 border-t border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Navigation</h3>
+            <div className="space-y-2">
+              {navigationItems.map((item) => (
+                <button
+                  key={item.path}
+                  onClick={() => navigate(item.path)}
+                  className="w-full flex items-center space-x-3 px-4 py-3 text-left text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg transition-colors duration-200"
+                >
+                  <item.icon className="w-5 h-5" />
+                  <span className="font-medium">{item.label}</span>
+                </button>
+              ))}
+              
+              {/* Authentication Button */}
+              {isAuthenticated ? (
+                <button
+                  onClick={() => navigate('/profile')}
+                  className="w-full flex items-center space-x-3 px-4 py-3 text-left text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg transition-colors duration-200"
+                >
+                  <UserCircle className="w-5 h-5" />
+                  <span className="font-medium">Profile</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => navigate('/auth')}
+                  className="w-full flex items-center space-x-3 px-4 py-3 text-left bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg transition-colors duration-200"
+                >
+                  <LogIn className="w-5 h-5" />
+                  <span className="font-medium">Login / Sign Up</span>
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
       
