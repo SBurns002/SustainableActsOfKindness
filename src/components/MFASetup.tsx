@@ -21,6 +21,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
   const [retryCount, setRetryCount] = useState(0);
   const [connectionStatus, setConnectionStatus] = useState<'online' | 'offline' | 'checking'>('checking');
   const [verificationInProgress, setVerificationInProgress] = useState(false);
+  const [verificationCompleted, setVerificationCompleted] = useState(false);
 
   // Check network connectivity
   useEffect(() => {
@@ -69,14 +70,18 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
 
   // Listen for auth state changes during verification
   useEffect(() => {
-    if (!verificationInProgress || !factorId) return;
+    if (!verificationInProgress || !factorId || verificationCompleted) return;
 
+    console.log('Setting up auth state listener for MFA verification');
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state change during MFA setup:', event, !!session);
       
-      if (event === 'MFA_CHALLENGE_VERIFIED' && session) {
+      if (event === 'MFA_CHALLENGE_VERIFIED' && session && !verificationCompleted) {
         console.log('MFA challenge verified via auth state change');
+        setVerificationCompleted(true);
         setVerificationInProgress(false);
+        setIsLoading(false);
         setDebugInfo('MFA verification detected via auth state change!');
         
         // Verify the factor is now active
@@ -111,8 +116,11 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, [verificationInProgress, factorId, onComplete]);
+    return () => {
+      console.log('Cleaning up auth state listener');
+      subscription.unsubscribe();
+    };
+  }, [verificationInProgress, factorId, onComplete, verificationCompleted]);
 
   // Auto-clear error after 10 seconds
   useEffect(() => {
@@ -273,7 +281,11 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
   };
 
   const verifyAndEnable = async () => {
-    if (!factorId || !verificationCode) {
+    if (!factorId || !verificationCode || verificationCompleted) {
+      if (verificationCompleted) {
+        console.log('Verification already completed, ignoring duplicate call');
+        return;
+      }
       setError('Missing verification information');
       return;
     }
@@ -345,7 +357,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
 
       setDebugInfo('Sending verification request...');
 
-      // Create verification promise with detailed logging
+      // Create verification promise with race condition against auth state change
       const verifyPromise = new Promise(async (resolve, reject) => {
         try {
           console.log('Making supabase.auth.mfa.verify call...');
@@ -372,10 +384,11 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
         }
       });
 
+      // Race between verification promise and a shorter timeout
+      // The auth state change listener will handle success cases
       let verifyResponse: any;
       try {
-        // Reduced timeout since auth state change will handle success
-        verifyResponse = await withTimeout(verifyPromise, 20000, 'MFA verification');
+        verifyResponse = await withTimeout(verifyPromise, 10000, 'MFA verification');
         console.log('MFA Verify Response received:', {
           data: verifyResponse.data,
           error: verifyResponse.error,
@@ -386,21 +399,24 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
         console.error('Verification timed out:', timeoutError);
         
         // Check if verification might have succeeded via auth state change
-        if (step === 'success') {
+        if (verificationCompleted || step === 'success') {
           console.log('Verification succeeded via auth state change despite timeout');
           return;
         }
         
-        // Provide more specific timeout guidance
-        throw new Error('Verification request timed out. This could be due to:\n' +
-          '• Slow internet connection\n' +
-          '• Supabase server issues\n' +
-          '• Network firewall blocking the request\n\n' +
-          'Please check your connection and try again.');
+        // Wait a bit more to see if auth state change fires
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        if (verificationCompleted || step === 'success') {
+          console.log('Verification succeeded via auth state change after additional wait');
+          return;
+        }
+        
+        throw new Error('Verification request timed out. The verification may still be processing. Please wait a moment and check if MFA was enabled in your profile.');
       }
 
-      // If we get here and step is already success, the auth state change handled it
-      if (step === 'success') {
+      // If we get here and verification is already completed, the auth state change handled it
+      if (verificationCompleted || step === 'success') {
         console.log('Verification already completed via auth state change');
         return;
       }
@@ -428,6 +444,9 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
       // Check if we got a successful response
       console.log('Verification successful! Response data:', verifyResponse.data);
       setDebugInfo('Verification successful! Confirming MFA status...');
+
+      // Mark as completed to prevent race conditions
+      setVerificationCompleted(true);
 
       // Step 4: Verify the factor is now active with timeout
       try {
@@ -471,6 +490,12 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
     } catch (err: any) {
       console.error('Verification error:', err);
       
+      // Don't show error if verification was already completed
+      if (verificationCompleted || step === 'success') {
+        console.log('Ignoring error because verification was already completed');
+        return;
+      }
+      
       // Handle timeout specifically
       if (err.message?.includes('timed out')) {
         setError('The verification request timed out. This might be due to a slow connection or server issues. Please try again.');
@@ -511,6 +536,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
     setRetryCount(0);
     setShowSecret(false);
     setVerificationInProgress(false);
+    setVerificationCompleted(false);
   };
 
   const handleCodeChange = (value: string) => {
@@ -728,7 +754,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-center text-lg font-mono tracking-wider"
                 maxLength={6}
                 autoFocus
-                disabled={isLoading || connectionStatus === 'offline'}
+                disabled={isLoading || connectionStatus === 'offline' || verificationCompleted}
               />
               <p className="text-xs text-gray-500 mt-2 text-center">
                 Codes refresh every 30 seconds. Use the current code shown in your app.
@@ -739,13 +765,13 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
               <button
                 onClick={onCancel}
                 className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                disabled={isLoading}
+                disabled={isLoading || verificationCompleted}
               >
                 Cancel
               </button>
               <button
                 onClick={verifyAndEnable}
-                disabled={isLoading || verificationCode.length !== 6 || connectionStatus === 'offline'}
+                disabled={isLoading || verificationCode.length !== 6 || connectionStatus === 'offline' || verificationCompleted}
                 className="flex-1 bg-emerald-600 text-white py-2 px-4 rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
               >
                 {isLoading ? (
@@ -758,6 +784,8 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
                   </>
                 ) : connectionStatus === 'offline' ? (
                   'Connection Required'
+                ) : verificationCompleted ? (
+                  'Completed'
                 ) : (
                   'Verify & Enable'
                 )}
