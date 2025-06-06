@@ -26,8 +26,12 @@ const MFASetup: React.FC<MFASetupProps> = ({ onComplete, onCancel }) => {
     try {
       setLoading(true);
       
+      // Generate a unique friendly name using timestamp
+      const friendlyName = `Authenticator App ${new Date().toISOString()}`;
+      
       const { data, error } = await supabase.auth.mfa.enroll({
-        factorType: 'totp'
+        factorType: 'totp',
+        friendlyName: friendlyName
       });
 
       if (error) throw error;
