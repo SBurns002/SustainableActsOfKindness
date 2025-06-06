@@ -138,24 +138,6 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
     }
   };
 
-  const waitForChallengeReady = async (challengeId: string, maxAttempts = 5) => {
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      setDebugInfo(`Waiting for challenge to be ready (attempt ${attempt}/${maxAttempts})...`);
-      
-      // Wait progressively longer between attempts
-      const waitTime = attempt * 500; // 500ms, 1s, 1.5s, 2s, 2.5s
-      await new Promise(resolve => setTimeout(resolve, waitTime));
-      
-      // You could add a check here if Supabase provides a way to verify challenge status
-      // For now, we'll just wait and assume it's ready after the delay
-      if (attempt === maxAttempts) {
-        setDebugInfo('Challenge should be ready for verification...');
-        return true;
-      }
-    }
-    return false;
-  };
-
   const verifyAndEnable = async () => {
     if (!factorId || !verificationCode) {
       setError('Missing verification information');
@@ -172,13 +154,13 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
       setError(null);
       setDebugInfo('Creating verification challenge...');
 
-      console.log('Starting MFA verification:', {
+      console.log('Starting MFA verification process:', {
         factorId: factorId.substring(0, 8) + '...',
         codeLength: verificationCode.length,
         attempt: retryCount + 1
       });
 
-      // Create challenge
+      // Step 1: Create challenge
       const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
         factorId
       });
@@ -199,101 +181,90 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
         throw new Error('No challenge ID received. Please try again.');
       }
 
-      console.log('Challenge created:', challengeData.id);
-      
-      // Wait for challenge to be ready with progressive backoff
-     // await waitForChallengeReady(challengeData.id);
+      console.log('Challenge created successfully:', challengeData.id);
+      setDebugInfo('Challenge created. Verifying your code...');
 
-      setDebugInfo('Verifying your code...');
+      // Step 2: Wait for challenge to be ready (important!)
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
-      // Verify the code with retry logic
-      let verifySuccess = false;
-      let lastError = null;
-      
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-          const { data: verifyData, error: verifyError } = await supabase.auth.mfa.verify({
-            System.out.println("Waiting for supabase");
-            factorId,
-            challengeId: challengeData.id,
-            code: verificationCode.trim()
-          });
+      // Step 3: Verify the code with detailed response logging
+      console.log('Attempting verification with:', {
+        factorId: factorId.substring(0, 8) + '...',
+        challengeId: challengeData.id.substring(0, 8) + '...',
+        code: verificationCode.replace(/./g, '*')
+      });
 
-          if (verifyError) {
-            lastError = verifyError;
-            console.error(`Verification attempt ${attempt} failed:`, verifyError);
-            
-            if (verifyError.message?.includes('invalid_code')) {
-              // Don't retry on invalid code - user needs to enter a new one
-              throw verifyError;
-            } else if (verifyError.message?.includes('expired')) {
-              throw verifyError;
-            } else if (verifyError.message?.includes('too_many_attempts')) {
-              throw verifyError;
-            }
-            
-            // For other errors, wait and retry
-            if (attempt < 3) {
-              setDebugInfo(`Verification attempt ${attempt} failed, retrying...`);
-              await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-              continue;
-            }
-          } else {
-            // Success!
-            console.log('Verification successful:', verifyData);
-            verifySuccess = true;
-            break;
-          }
-        } catch (retryError) {
-          lastError = retryError;
-          if (attempt === 3) break;
-        }
-      }
+      const verifyResponse = await supabase.auth.mfa.verify({
+        factorId,
+        challengeId: challengeData.id,
+        code: verificationCode.trim()
+      });
 
-      if (!verifySuccess && lastError) {
-        if (lastError.message?.includes('invalid_code')) {
+      // Log the complete response for debugging
+      console.log('MFA Verify Response:', {
+        data: verifyResponse.data,
+        error: verifyResponse.error,
+        hasData: !!verifyResponse.data,
+        hasError: !!verifyResponse.error
+      });
+
+      // Check for errors first
+      if (verifyResponse.error) {
+        console.error('Verification failed with error:', verifyResponse.error);
+        
+        if (verifyResponse.error.message?.includes('invalid_code')) {
           setRetryCount(prev => prev + 1);
           throw new Error('Invalid code. Please check your authenticator app and try again. Make sure you\'re using the current 6-digit code.');
-        } else if (lastError.message?.includes('expired')) {
+        } else if (verifyResponse.error.message?.includes('expired')) {
           throw new Error('Code expired. Please try again with a fresh code from your authenticator app.');
-        } else if (lastError.message?.includes('challenge_expired')) {
+        } else if (verifyResponse.error.message?.includes('challenge_expired')) {
           throw new Error('Verification session expired. Please try again.');
-        } else if (lastError.message?.includes('too_many_attempts')) {
+        } else if (verifyResponse.error.message?.includes('too_many_attempts')) {
           throw new Error('Too many failed attempts. Please wait 5 minutes before trying again.');
         } else {
-          throw new Error(`Verification failed: ${lastError.message}`);
+          throw new Error(`Verification failed: ${verifyResponse.error.message}`);
         }
       }
 
-      setDebugInfo('Verification successful! Confirming MFA status...');
+      // Check if we got a successful response
+      if (verifyResponse.data) {
+        console.log('Verification successful! Response data:', verifyResponse.data);
+        setDebugInfo('Verification successful! Confirming MFA status...');
 
-      // Verify the factor is now active
-      const { data: updatedFactors, error: factorsError } = await supabase.auth.mfa.listFactors();
-      
-      if (!factorsError) {
-        const verifiedFactor = updatedFactors?.totp?.find(f => f.id === factorId && f.status === 'verified');
-        if (verifiedFactor) {
-          console.log('MFA successfully enabled:', verifiedFactor);
-          setStep('success');
-          setDebugInfo('Two-factor authentication is now active!');
-          toast.success('Two-factor authentication enabled successfully!');
-          
-          setTimeout(() => {
-            onComplete();
-          }, 2000);
-          return;
+        // Step 4: Verify the factor is now active
+        const { data: updatedFactors, error: factorsError } = await supabase.auth.mfa.listFactors();
+        
+        if (!factorsError && updatedFactors?.totp) {
+          const verifiedFactor = updatedFactors.totp.find(f => f.id === factorId && f.status === 'verified');
+          if (verifiedFactor) {
+            console.log('MFA successfully enabled and verified:', verifiedFactor);
+            setStep('success');
+            setDebugInfo('Two-factor authentication is now active!');
+            toast.success('Two-factor authentication enabled successfully!');
+            
+            setTimeout(() => {
+              onComplete();
+            }, 2000);
+            return;
+          } else {
+            console.warn('Factor not found in verified state, but verification succeeded');
+          }
         }
-      }
 
-      // Fallback success handling
-      console.log('Verification completed, assuming success');
-      setStep('success');
-      setDebugInfo('Two-factor authentication enabled!');
-      toast.success('Two-factor authentication enabled successfully!');
-      
-      setTimeout(() => {
-        onComplete();
-      }, 2000);
+        // Fallback success handling if factor check fails
+        console.log('Verification completed successfully (fallback success)');
+        setStep('success');
+        setDebugInfo('Two-factor authentication enabled!');
+        toast.success('Two-factor authentication enabled successfully!');
+        
+        setTimeout(() => {
+          onComplete();
+        }, 2000);
+      } else {
+        // No data and no error - this is unusual
+        console.warn('MFA verify returned neither data nor error:', verifyResponse);
+        throw new Error('Verification response was empty. Please try again.');
+      }
       
     } catch (err: any) {
       console.error('Verification error:', err);
@@ -542,9 +513,8 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
                     {debugInfo.includes('Creating') ? 'Creating...' : 
-                     debugInfo.includes('Waiting') ? 'Preparing...' :
-                     debugInfo.includes('Verifying') ? 'Verifying...' : 
-                     debugInfo.includes('Confirming') ? 'Confirming...' : 'Processing...'}
+                     debugInfo.includes('Challenge created') ? 'Verifying...' : 
+                     debugInfo.includes('Verification successful') ? 'Confirming...' : 'Processing...'}
                   </>
                 ) : (
                   'Verify & Enable'
