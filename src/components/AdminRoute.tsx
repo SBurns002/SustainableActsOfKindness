@@ -30,9 +30,9 @@ const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
         .select('role')
         .eq('user_id', user.id)
         .eq('role', 'admin')
-        .maybeSingle();
+        .limit(1);
 
-      if (error || !roles) {
+      if (error || !roles || roles.length === 0) {
         setIsAdmin(false);
         toast.error('Access denied. Administrator privileges required.');
       } else {

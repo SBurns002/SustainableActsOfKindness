@@ -67,9 +67,9 @@ const Header: React.FC = () => {
         .select('role')
         .eq('user_id', userId)
         .eq('role', 'admin')
-        .single();
+        .limit(1);
 
-      setIsAdmin(!!roles);
+      setIsAdmin(roles && roles.length > 0);
     } catch (error) {
       // User is not an admin, which is fine
       setIsAdmin(false);
