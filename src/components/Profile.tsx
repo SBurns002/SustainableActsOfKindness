@@ -56,6 +56,13 @@ const Profile: React.FC = () => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationSuccess, setVerificationSuccess] = useState(false);
 
+  // MFA Disable States
+  const [showMfaDisableModal, setShowMfaDisableModal] = useState(false);
+  const [disableFactorId, setDisableFactorId] = useState<string | null>(null);
+  const [disableChallengeId, setDisableChallengeId] = useState<string | null>(null);
+  const [disableVerificationCode, setDisableVerificationCode] = useState('');
+  const [isDisabling, setIsDisabling] = useState(false);
+
   const getEventDetails = (eventId: string) => {
     return cleanupData.features.find(
       feature => feature.properties.name === eventId
@@ -361,7 +368,7 @@ const Profile: React.FC = () => {
     }
   };
 
-  const disableMfa = async (factorId: string) => {
+  const startMfaDisable = async (factorId: string) => {
     // Validate factorId before proceeding
     if (!factorId || typeof factorId !== 'string' || factorId.trim() === '') {
       console.error('Invalid factorId provided:', factorId);
@@ -375,37 +382,99 @@ const Profile: React.FC = () => {
 
     setMfaLoading(true);
     try {
-      const { error } = await supabase.auth.mfa.unenroll({ factorId: factorId.trim() });
+      // Create a challenge for the factor we want to disable
+      const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
+        factorId: factorId.trim()
+      });
 
-      if (error) {
-        console.error('MFA disable error:', error);
+      if (challengeError) {
+        console.error('MFA challenge error for disable:', challengeError);
+        toast.error('Failed to create verification challenge. Please try again.');
+        return;
+      }
+
+      // Set up the disable modal
+      setDisableFactorId(factorId.trim());
+      setDisableChallengeId(challengeData.id);
+      setDisableVerificationCode('');
+      setShowMfaDisableModal(true);
+      
+    } catch (error: any) {
+      console.error('Error starting MFA disable process:', error);
+      
+      if (error.message?.includes('Failed to fetch') || error.name === 'TypeError') {
+        toast.error('Network error: Unable to connect to the server. Please check your internet connection and try again.');
+      } else {
+        toast.error(`Failed to start MFA disable process: ${error.message || 'Unknown error occurred'}`);
+      }
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
+  const completeMfaDisable = async () => {
+    if (!disableFactorId || !disableChallengeId || !disableVerificationCode || disableVerificationCode.length !== 6) {
+      toast.error('Please enter a valid 6-digit verification code');
+      return;
+    }
+
+    setIsDisabling(true);
+    try {
+      // First verify the MFA code
+      const { error: verifyError } = await supabase.auth.mfa.verify({
+        factorId: disableFactorId,
+        challengeId: disableChallengeId,
+        code: disableVerificationCode
+      });
+
+      if (verifyError) {
+        console.error('MFA verification error for disable:', verifyError);
         
-        // Provide more specific error messages based on error type
-        if (error.message?.includes('Failed to fetch')) {
-          toast.error('Network error: Unable to connect to the server. Please check your internet connection and try again.');
-        } else if (error.message?.includes('not found') || error.message?.includes('invalid')) {
-          toast.error('MFA factor not found. Please refresh the page and try again.');
+        if (verifyError.message?.includes('invalid_code') || verifyError.message?.includes('Invalid')) {
+          toast.error('Invalid verification code. Please check your authenticator app and try again.');
+        } else if (verifyError.message?.includes('expired')) {
+          toast.error('Verification code has expired. Please try again.');
+          resetMfaDisableModal();
         } else {
-          toast.error(`Failed to disable MFA: ${error.message}`);
+          toast.error(`Verification failed: ${verifyError.message}`);
         }
         return;
       }
 
-      toast.success('MFA has been disabled');
+      // Now that we're verified, we can unenroll the factor
+      const { error: unenrollError } = await supabase.auth.mfa.unenroll({ 
+        factorId: disableFactorId 
+      });
+
+      if (unenrollError) {
+        console.error('MFA unenroll error:', unenrollError);
+        toast.error(`Failed to disable MFA: ${unenrollError.message}`);
+        return;
+      }
+
+      toast.success('MFA has been disabled successfully');
+      resetMfaDisableModal();
       await fetchMfaFactors();
       
     } catch (error: any) {
-      console.error('Error disabling MFA:', error);
+      console.error('Error completing MFA disable:', error);
       
-      // Enhanced error handling for network issues
       if (error.message?.includes('Failed to fetch') || error.name === 'TypeError') {
         toast.error('Network error: Unable to connect to the server. Please check your internet connection and try again.');
       } else {
         toast.error(`Failed to disable MFA: ${error.message || 'Unknown error occurred'}`);
       }
     } finally {
-      setMfaLoading(false);
+      setIsDisabling(false);
     }
+  };
+
+  const resetMfaDisableModal = () => {
+    setShowMfaDisableModal(false);
+    setDisableFactorId(null);
+    setDisableChallengeId(null);
+    setDisableVerificationCode('');
+    setIsDisabling(false);
   };
 
   const copyToClipboard = (text: string) => {
@@ -426,6 +495,14 @@ const Profile: React.FC = () => {
     const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
     if (value.length <= 6) {
       setVerificationCode(value);
+    }
+  };
+
+  // Handle disable verification code input with proper formatting
+  const handleDisableVerificationCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+    if (value.length <= 6) {
+      setDisableVerificationCode(value);
     }
   };
 
@@ -695,6 +772,9 @@ const Profile: React.FC = () => {
   // Check if verification button should be enabled
   const isVerificationButtonEnabled = verificationCode.length === 6 && /^\d{6}$/.test(verificationCode) && !isVerifying && !verificationSuccess;
 
+  // Check if disable verification button should be enabled
+  const isDisableVerificationButtonEnabled = disableVerificationCode.length === 6 && /^\d{6}$/.test(disableVerificationCode) && !isDisabling;
+
   // Get button text and styling based on verification status
   const getVerificationButtonProps = () => {
     if (verificationSuccess) {
@@ -804,7 +884,7 @@ const Profile: React.FC = () => {
                             View Backup Codes
                           </button>
                           <button
-                            onClick={() => disableMfa(factor.id)}
+                            onClick={() => startMfaDisable(factor.id)}
                             disabled={mfaLoading}
                             className="text-red-600 hover:text-red-700 text-sm font-medium disabled:opacity-50"
                           >
@@ -1131,6 +1211,75 @@ const Profile: React.FC = () => {
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                   )}
                   {buttonProps.text}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MFA Disable Verification Modal */}
+      {showMfaDisableModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="text-center mb-6">
+              <div className="bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Shield className="w-8 h-8 text-red-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900">Verify to Disable MFA</h3>
+              <p className="text-gray-600 mt-2">Enter your current verification code to confirm</p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div className="flex items-start space-x-2">
+                  <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
+                  <div className="text-sm text-amber-800">
+                    <p className="font-medium">Security Warning:</p>
+                    <p className="mt-1">Disabling MFA will make your account less secure. Make sure you have alternative security measures in place.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Enter verification code from your authenticator app:
+                </label>
+                <input
+                  type="text"
+                  value={disableVerificationCode}
+                  onChange={handleDisableVerificationCodeChange}
+                  placeholder="000000"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-center text-lg font-mono"
+                  maxLength={6}
+                  autoComplete="off"
+                />
+                <p className="text-xs text-gray-500 mt-1 text-center">
+                  Enter the 6-digit code from your authenticator app
+                </p>
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={resetMfaDisableModal}
+                  disabled={isDisabling}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={completeMfaDisable}
+                  disabled={!isDisableVerificationButtonEnabled}
+                  className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center ${
+                    isDisableVerificationButtonEnabled
+                      ? 'bg-red-600 text-white hover:bg-red-700'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  {isDisabling && (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  )}
+                  {isDisabling ? 'Disabling...' : 'Verify & Disable MFA'}
                 </button>
               </div>
             </div>
