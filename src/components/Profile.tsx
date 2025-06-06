@@ -46,6 +46,7 @@ const Profile: React.FC = () => {
       const { data: participationsData, error: participationsError } = await supabase
         .from('event_participants')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (participationsError) throw participationsError;
@@ -55,6 +56,7 @@ const Profile: React.FC = () => {
       const { data: remindersData, error: remindersError } = await supabase
         .from('event_reminders')
         .select('*')
+        .eq('user_id', user.id)
         .order('event_date', { ascending: true });
 
       if (remindersError) throw remindersError;
@@ -125,7 +127,10 @@ const Profile: React.FC = () => {
         .eq('user_id', user.id)
         .eq('event_id', eventId);
 
-      if (participationError) throw participationError;
+      if (participationError) {
+        console.error('Error removing participation:', participationError);
+        throw participationError;
+      }
 
       // Remove associated reminders
       const { error: reminderError } = await supabase
@@ -134,12 +139,16 @@ const Profile: React.FC = () => {
         .eq('user_id', user.id)
         .eq('event_id', eventId);
 
-      if (reminderError) throw reminderError;
-
-      // Refresh all data to ensure consistency
-      await fetchUserData();
+      if (reminderError) {
+        console.error('Error removing reminder:', reminderError);
+        throw reminderError;
+      }
 
       toast.success(`Successfully left ${eventName}`);
+      
+      // Force a page refresh to ensure all state is updated
+      window.location.reload();
+
     } catch (error) {
       console.error('Error leaving event:', error);
       toast.error('Failed to leave event');

@@ -142,21 +142,28 @@ const EventDetails: React.FC = () => {
     if (!user) return;
 
     try {
-      const { error } = await supabase
+      // First, remove from event participants
+      const { error: participationError } = await supabase
         .from('event_participants')
         .delete()
         .eq('user_id', user.id)
         .eq('event_id', id);
 
-      if (error) throw error;
+      if (participationError) {
+        console.error('Error removing participation:', participationError);
+        throw participationError;
+      }
 
-      // Remove reminder for the event
+      // Then remove reminder for the event
       await removeEventReminder(user.id);
 
-      // Refresh the event details to get updated state
-      await fetchEventDetails();
       toast.success('Successfully left the event. Your reminder has been removed.');
+      
+      // Force a page refresh to ensure all state is updated
+      window.location.reload();
+      
     } catch (error) {
+      console.error('Error leaving event:', error);
       toast.error('Failed to leave the event. Please try again.');
     } finally {
       setLoading(false);
