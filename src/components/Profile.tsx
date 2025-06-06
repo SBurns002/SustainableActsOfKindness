@@ -241,25 +241,6 @@ const Profile: React.FC = () => {
     };
   }, [currentUser]);
 
-  // Auto-create missing reminders when participations are loaded
-  useEffect(() => {
-    if (participations.length > 0 && reminders.length >= 0 && currentUser) {
-      const participationsWithoutReminders = participations.filter(p => {
-        const hasReminder = reminders.some(r => r.event_id === p.event_id);
-        const eventDetails = getEventDetails(p.event_id);
-        const isFutureEvent = eventDetails && new Date(eventDetails.properties.date) > new Date();
-        return !hasReminder && isFutureEvent;
-      });
-
-      if (participationsWithoutReminders.length > 0) {
-        // Auto-create reminders after a short delay
-        setTimeout(() => {
-          createMissingReminders();
-        }, 1000);
-      }
-    }
-  }, [participations, reminders, currentUser]);
-
   const updateNotificationPreferences = async (participationId: string, preferences: any) => {
     try {
       const { error } = await supabase
