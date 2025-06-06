@@ -50,7 +50,18 @@ const Auth: React.FC = () => {
         navigate(returnTo);
       }
     } catch (error: any) {
-      toast.error(error.message);
+      console.error('Authentication error:', error);
+      
+      // Provide more specific error messages
+      if (error.message === 'Failed to fetch') {
+        toast.error('Unable to connect to authentication service. Please check your internet connection and try again.');
+      } else if (error.message.includes('Invalid login credentials')) {
+        toast.error('Invalid email or password. Please check your credentials and try again.');
+      } else if (error.message.includes('Email not confirmed')) {
+        toast.error('Please check your email and confirm your account before signing in.');
+      } else {
+        toast.error(error.message || 'An unexpected error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -105,7 +116,7 @@ const Auth: React.FC = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Processing...' : isSignUp ? 'Sign up' : 'Sign in'}
               </button>
