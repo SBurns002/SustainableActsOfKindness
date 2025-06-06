@@ -116,16 +116,20 @@ const MapView: React.FC = () => {
   };
 
   return (
-    <div className="relative w-full h-full flex flex-col">
-      <div className="absolute top-4 left-4 right-4 z-[1001] bg-white rounded-lg shadow-lg p-4 max-w-md mx-auto">
-        <DateRangeFilter 
-          onDateRangeChange={setDateRange}
-          onEventTypeChange={setSelectedEventTypes}
-          dateRange={dateRange}
-          selectedEventTypes={selectedEventTypes}
-        />
+    <div className="relative w-full h-full flex">
+      {/* Left sidebar with filters */}
+      <div className="w-80 bg-white shadow-lg z-[1001] overflow-y-auto">
+        <div className="p-4">
+          <DateRangeFilter 
+            onDateRangeChange={setDateRange}
+            onEventTypeChange={setSelectedEventTypes}
+            dateRange={dateRange}
+            selectedEventTypes={selectedEventTypes}
+          />
+        </div>
       </div>
       
+      {/* Map container */}
       <div className="flex-1">
         <MapContainer
           center={[42.3601, -71.0589]}
@@ -150,6 +154,7 @@ const MapView: React.FC = () => {
         </MapContainer>
       </div>
       
+      {/* Legend positioned on the right side of the map */}
       <div className="absolute bottom-4 right-4 z-[1000]">
         <MapLegend />
       </div>
