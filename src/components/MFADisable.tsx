@@ -21,10 +21,10 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
   }, []);
 
   const initializeChallenge = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
+    setIsLoading(true);
+    setError(null);
 
+    try {
       const { data, error } = await supabase.auth.mfa.challenge({
         factorId: totpFactorId
       });
@@ -56,10 +56,10 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
   const disableMFA = async () => {
     if (!challengeId || !verificationCode) return;
 
-    try {
-      setIsLoading(true);
-      setError(null);
+    setIsLoading(true);
+    setError(null);
 
+    try {
       // First verify the code
       const { data: verifyData, error: verifyError } = await supabase.auth.mfa.verify({
         factorId: totpFactorId,

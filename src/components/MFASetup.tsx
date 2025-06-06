@@ -18,10 +18,10 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
   const [step, setStep] = useState<'initial' | 'scan' | 'verify' | 'success'>('initial');
 
   const enrollMFA = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
+    setIsLoading(true);
+    setError(null);
 
+    try {
       // First check if user already has MFA enabled
       const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
       
@@ -72,10 +72,10 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
   const verifyAndEnable = async () => {
     if (!factorId || !verificationCode) return;
 
-    try {
-      setIsLoading(true);
-      setError(null);
+    setIsLoading(true);
+    setError(null);
 
+    try {
       const { data, error } = await supabase.auth.mfa.challengeAndVerify({
         factorId,
         code: verificationCode
