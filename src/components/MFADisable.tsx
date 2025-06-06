@@ -67,7 +67,7 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
         codeLength: verificationCode.length
       });
 
-      // Add timeout to prevent hanging
+      // Add timeout to prevent hanging - increased to 60 seconds
       const verificationPromise = supabase.auth.mfa.verify({
         factorId: totpFactorId,
         challengeId: challengeId,
@@ -75,7 +75,7 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
       });
 
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Verification timed out after 30 seconds')), 30000);
+        setTimeout(() => reject(new Error('Verification timed out after 60 seconds')), 60000);
       });
 
       const { data: verifyData, error: verifyError } = await Promise.race([
@@ -103,7 +103,7 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
       console.log('Code verified successfully:', verifyData);
       setDebugInfo('Code verified. Disabling MFA...');
 
-      // Step 3: Unenroll the factor with timeout
+      // Step 3: Unenroll the factor with timeout - increased to 60 seconds
       console.log('Attempting to unenroll factor:', totpFactorId);
 
       const unenrollPromise = supabase.auth.mfa.unenroll({
@@ -111,7 +111,7 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
       });
 
       const unenrollTimeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Unenroll timed out after 30 seconds')), 30000);
+        setTimeout(() => reject(new Error('Unenroll timed out after 60 seconds')), 60000);
       });
 
       const { error: unenrollError } = await Promise.race([
@@ -165,14 +165,14 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
 
       console.log('Attempting challengeAndVerify for factor:', totpFactorId);
 
-      // Use challengeAndVerify which combines challenge creation and verification
+      // Use challengeAndVerify which combines challenge creation and verification - increased to 60 seconds
       const challengeAndVerifyPromise = supabase.auth.mfa.challengeAndVerify({
         factorId: totpFactorId,
         code: verificationCode
       });
 
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Alternative method timed out after 30 seconds')), 30000);
+        setTimeout(() => reject(new Error('Alternative method timed out after 60 seconds')), 60000);
       });
 
       const { data, error } = await Promise.race([
@@ -195,10 +195,19 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
       console.log('Alternative verification successful:', data);
       setDebugInfo('Verification successful. Disabling MFA...');
 
-      // Now unenroll the factor
-      const { error: unenrollError } = await supabase.auth.mfa.unenroll({
+      // Now unenroll the factor - increased to 60 seconds
+      const unenrollPromise = supabase.auth.mfa.unenroll({
         factorId: totpFactorId
       });
+
+      const unenrollTimeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Unenroll timed out after 60 seconds')), 60000);
+      });
+
+      const { error: unenrollError } = await Promise.race([
+        unenrollPromise,
+        unenrollTimeoutPromise
+      ]) as any;
 
       if (unenrollError) {
         console.error('Unenroll failed:', unenrollError);
@@ -253,7 +262,7 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
       });
 
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Direct disable timed out after 30 seconds')), 30000);
+        setTimeout(() => reject(new Error('Direct disable timed out after 60 seconds')), 60000);
       });
 
       const { error } = await Promise.race([
