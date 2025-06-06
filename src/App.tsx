@@ -9,6 +9,7 @@ import AuthStatus from './components/AuthStatus';
 import Profile from './components/Profile';
 import About from './components/About';
 import Resources from './components/Resources';
+import MFAAPITest from './components/MFAAPITest';
 
 function App() {
   return (
@@ -46,6 +47,11 @@ function App() {
             <Route path="/resources" element={
               <div className="h-full overflow-y-auto">
                 <Resources />
+              </div>
+            } />
+            <Route path="/mfa-test" element={
+              <div className="h-full overflow-y-auto">
+                <MFAAPITest />
               </div>
             } />
           </Routes>
