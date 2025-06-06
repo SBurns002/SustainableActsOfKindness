@@ -146,6 +146,14 @@ const Auth: React.FC = () => {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
         redirectTo: `${window.location.origin}/auth?reset=true`,
+        data: {
+          // Custom data that can be used in email templates
+          app_name: 'Sustainable Acts of Kindness',
+          app_description: 'Environmental Community Platform',
+          support_email: 'support@sustainableactsofkindness.org',
+          website_url: window.location.origin,
+          reset_reason: 'password_reset_request'
+        }
       });
 
       if (error) throw error;
@@ -226,7 +234,7 @@ const Auth: React.FC = () => {
             Reset Your Password
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Enter your email address and we'll send you a link to reset your password
+            Enter your email address and we'll send you a secure link to reset your password for your Sustainable Acts of Kindness account
           </p>
         </div>
 
@@ -239,8 +247,14 @@ const Auth: React.FC = () => {
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Check Your Email</h3>
                 <p className="text-gray-600 mb-4">
-                  We've sent a password reset link to <strong>{resetEmail}</strong>
+                  We've sent a password reset link for your <strong>Sustainable Acts of Kindness</strong> account to <strong>{resetEmail}</strong>
                 </p>
+                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-6">
+                  <p className="text-sm text-emerald-800">
+                    <strong>Look for an email from Sustainable Acts of Kindness</strong> with the subject line "Reset your password". 
+                    The email will contain a secure link to create a new password for your environmental community platform account.
+                  </p>
+                </div>
                 <p className="text-sm text-gray-500 mb-6">
                   Didn't receive the email? Check your spam folder or try again with a different email address.
                 </p>
@@ -268,6 +282,18 @@ const Auth: React.FC = () => {
               </div>
             ) : (
               <form className="space-y-6" onSubmit={handlePasswordReset}>
+                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-6">
+                  <div className="flex items-start">
+                    <Mail className="w-5 h-5 text-emerald-600 mt-0.5 mr-3 flex-shrink-0" />
+                    <div>
+                      <h4 className="text-sm font-medium text-emerald-900">Secure Password Reset</h4>
+                      <p className="text-sm text-emerald-800 mt-1">
+                        We'll send you a secure email with instructions to reset your password for your Sustainable Acts of Kindness account.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <div>
                   <label htmlFor="reset-email" className="block text-sm font-medium text-gray-700">
                     Email address
@@ -285,6 +311,9 @@ const Auth: React.FC = () => {
                     />
                     <Mail className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
                   </div>
+                  <p className="mt-2 text-xs text-gray-500">
+                    This must be the email address associated with your Sustainable Acts of Kindness account
+                  </p>
                 </div>
 
                 <div>
@@ -293,7 +322,7 @@ const Auth: React.FC = () => {
                     disabled={resetLoading}
                     className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {resetLoading ? 'Sending...' : 'Send Reset Link'}
+                    {resetLoading ? 'Sending Reset Email...' : 'Send Password Reset Email'}
                   </button>
                 </div>
               </form>
