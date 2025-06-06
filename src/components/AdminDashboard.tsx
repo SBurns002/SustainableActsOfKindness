@@ -15,7 +15,11 @@ import {
   Save,
   Eye,
   Filter,
-  Search
+  Search,
+  Shield,
+  UserPlus,
+  UserMinus,
+  Settings
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -57,18 +61,29 @@ interface EventCategory {
   icon: string;
 }
 
+interface AdminUser {
+  user_id: string;
+  email: string;
+  assigned_at: string;
+  assigned_by_email: string;
+}
+
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [events, setEvents] = useState<Event[]>([]);
   const [categories, setCategories] = useState<EventCategory[]>([]);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showEventForm, setShowEventForm] = useState(false);
+  const [showUserManagement, setShowUserManagement] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [userManagementLoading, setUserManagementLoading] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -98,6 +113,7 @@ const AdminDashboard: React.FC = () => {
     if (isAdmin) {
       fetchEvents();
       fetchCategories();
+      fetchAdminUsers();
     }
   }, [isAdmin]);
 
@@ -166,6 +182,77 @@ const AdminDashboard: React.FC = () => {
     } catch (error) {
       console.error('Error fetching categories:', error);
       toast.error('Failed to load categories');
+    }
+  };
+
+  const fetchAdminUsers = async () => {
+    try {
+      const { data, error } = await supabase.rpc('list_admin_users');
+      
+      if (error) throw error;
+      setAdminUsers(data || []);
+    } catch (error) {
+      console.error('Error fetching admin users:', error);
+      toast.error('Failed to load admin users');
+    }
+  };
+
+  const handleAddAdmin = async () => {
+    if (!newAdminEmail.trim()) {
+      toast.error('Please enter an email address');
+      return;
+    }
+
+    setUserManagementLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('manage_admin_users', {
+        target_email: newAdminEmail.trim(),
+        action: 'add'
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast.success(data.message);
+        setNewAdminEmail('');
+        fetchAdminUsers();
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      console.error('Error adding admin:', error);
+      toast.error('Failed to add admin user');
+    } finally {
+      setUserManagementLoading(false);
+    }
+  };
+
+  const handleRemoveAdmin = async (email: string) => {
+    if (adminUsers.length <= 1) {
+      toast.error('Cannot remove the last admin user');
+      return;
+    }
+
+    setUserManagementLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('manage_admin_users', {
+        target_email: email,
+        action: 'remove'
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast.success(data.message);
+        fetchAdminUsers();
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      console.error('Error removing admin:', error);
+      toast.error('Failed to remove admin user');
+    } finally {
+      setUserManagementLoading(false);
     }
   };
 
@@ -339,17 +426,70 @@ const AdminDashboard: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-900">Administrator Dashboard</h1>
             <p className="text-gray-600 mt-2">Manage sustainability events and community activities</p>
           </div>
-          <button
-            onClick={() => {
-              resetForm();
-              setEditingEvent(null);
-              setShowEventForm(true);
-            }}
-            className="bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-700 transition-colors flex items-center space-x-2"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Add Event</span>
-          </button>
+          <div className="flex space-x-4">
+            <button
+              onClick={() => setShowUserManagement(true)}
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+            >
+              <Shield className="w-5 h-5" />
+              <span>Manage Admins</span>
+            </button>
+            <button
+              onClick={() => {
+                resetForm();
+                setEditingEvent(null);
+                setShowEventForm(true);
+              }}
+              className="bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-700 transition-colors flex items-center space-x-2"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Add Event</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-emerald-50 rounded-lg p-6">
+            <div className="flex items-center">
+              <Calendar className="w-8 h-8 text-emerald-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-emerald-600">Total Events</p>
+                <p className="text-2xl font-bold text-emerald-900">{events.length}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-blue-50 rounded-lg p-6">
+            <div className="flex items-center">
+              <CheckCircle className="w-8 h-8 text-blue-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-blue-600">Active Events</p>
+                <p className="text-2xl font-bold text-blue-900">
+                  {events.filter(e => e.status === 'active').length}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-purple-50 rounded-lg p-6">
+            <div className="flex items-center">
+              <Users className="w-8 h-8 text-purple-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-purple-600">Total Participants</p>
+                <p className="text-2xl font-bold text-purple-900">
+                  {events.reduce((sum, e) => sum + e.current_participants, 0)}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-amber-50 rounded-lg p-6">
+            <div className="flex items-center">
+              <Shield className="w-8 h-8 text-amber-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-amber-600">Admin Users</p>
+                <p className="text-2xl font-bold text-amber-900">{adminUsers.length}</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Filters */}
@@ -503,6 +643,84 @@ const AdminDashboard: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* User Management Modal */}
+      {showUserManagement && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Manage Administrator Users</h2>
+                <button
+                  onClick={() => setShowUserManagement(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Add Admin */}
+              <div className="mb-8 p-4 bg-blue-50 rounded-lg">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Add New Administrator</h3>
+                <div className="flex space-x-4">
+                  <input
+                    type="email"
+                    value={newAdminEmail}
+                    onChange={(e) => setNewAdminEmail(e.target.value)}
+                    placeholder="Enter email address"
+                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <button
+                    onClick={handleAddAdmin}
+                    disabled={userManagementLoading || !newAdminEmail.trim()}
+                    className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>Add Admin</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Current Admins */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Administrators</h3>
+                <div className="space-y-3">
+                  {adminUsers.map((admin) => (
+                    <div key={admin.user_id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                      <div>
+                        <p className="font-medium text-gray-900">{admin.email}</p>
+                        <p className="text-sm text-gray-600">
+                          Added on {new Date(admin.assigned_at).toLocaleDateString()}
+                          {admin.assigned_by_email && ` by ${admin.assigned_by_email}`}
+                        </p>
+                      </div>
+                      {adminUsers.length > 1 && (
+                        <button
+                          onClick={() => handleRemoveAdmin(admin.email)}
+                          disabled={userManagementLoading}
+                          className="text-red-600 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed p-2"
+                          title="Remove Admin"
+                        >
+                          <UserMinus className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <button
+                  onClick={() => setShowUserManagement(false)}
+                  className="w-full bg-gray-600 text-white py-3 px-4 rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Event Form Modal */}
       {showEventForm && (
