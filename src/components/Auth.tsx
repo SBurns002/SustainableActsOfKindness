@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import MFAChallenge from './MFAChallenge';
-import { ArrowLeft, Mail, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Mail, CheckCircle, AlertTriangle } from 'lucide-react';
 
 const Auth: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -16,8 +16,41 @@ const Auth: React.FC = () => {
   const [resetEmail, setResetEmail] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [resetAttempted, setResetAttempted] = useState(false); // Track if user has attempted reset
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Check URL parameters on component mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const isPasswordReset = urlParams.get('reset') === 'true';
+    const hasError = urlParams.get('error');
+    const hasErrorDescription = urlParams.get('error_description');
+
+    if (isPasswordReset) {
+      // User clicked a password reset link - show them the reset form but don't auto-send
+      setShowPasswordReset(true);
+      setResetSent(false);
+      setResetAttempted(false);
+      
+      // Show informational message about the reset link
+      toast.info('You clicked a password reset link. Please enter your email to send a new reset email.', {
+        duration: 6000
+      });
+    }
+
+    if (hasError) {
+      // Handle any auth errors from the URL
+      const errorMsg = hasErrorDescription || hasError;
+      toast.error(`Authentication error: ${errorMsg}`);
+      
+      // Clear the error from URL
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('error');
+      newUrl.searchParams.delete('error_description');
+      window.history.replaceState({}, '', newUrl.toString());
+    }
+  }, [location.search]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,6 +142,8 @@ const Auth: React.FC = () => {
                     toast.dismiss(t.id);
                     setResetEmail(email);
                     setShowPasswordReset(true);
+                    setResetSent(false);
+                    setResetAttempted(false);
                   }}
                   className="text-emerald-600 hover:text-emerald-700 font-medium text-sm underline"
                 >
@@ -141,7 +176,13 @@ const Auth: React.FC = () => {
       return;
     }
 
+    // Prevent multiple rapid submissions
+    if (resetLoading) {
+      return;
+    }
+
     setResetLoading(true);
+    setResetAttempted(true);
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
@@ -152,7 +193,9 @@ const Auth: React.FC = () => {
           app_description: 'Environmental Community Platform',
           support_email: 'support@sustainableactsofkindness.org',
           website_url: window.location.origin,
-          reset_reason: 'password_reset_request'
+          reset_reason: 'password_reset_request',
+          user_email: resetEmail,
+          timestamp: new Date().toISOString()
         }
       });
 
@@ -167,6 +210,8 @@ const Auth: React.FC = () => {
         toast.error('No account found with this email address.');
       } else if (error.message.includes('Failed to fetch')) {
         toast.error('Unable to connect to authentication service. Please check your internet connection.');
+      } else if (error.message.includes('rate_limit') || error.message.includes('too_many_requests')) {
+        toast.error('Too many password reset attempts. Please wait a few minutes before trying again.');
       } else {
         toast.error(error.message || 'Failed to send password reset email. Please try again.');
       }
@@ -190,6 +235,19 @@ const Auth: React.FC = () => {
     setMfaFactorId(null);
     setLoading(false);
     toast.info('Login cancelled. MFA verification is required.');
+  };
+
+  const resetPasswordResetState = () => {
+    setShowPasswordReset(false);
+    setResetSent(false);
+    setResetEmail('');
+    setResetAttempted(false);
+    setResetLoading(false);
+    
+    // Clear any reset parameters from URL
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.delete('reset');
+    window.history.replaceState({}, '', newUrl.toString());
   };
 
   if (showMfaChallenge) {
@@ -219,11 +277,7 @@ const Auth: React.FC = () => {
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
           <button
-            onClick={() => {
-              setShowPasswordReset(false);
-              setResetSent(false);
-              setResetEmail('');
-            }}
+            onClick={resetPasswordResetState}
             className="mb-4 flex items-center text-emerald-600 hover:text-emerald-700 transition-colors"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -263,17 +317,14 @@ const Auth: React.FC = () => {
                     onClick={() => {
                       setResetSent(false);
                       setResetEmail('');
+                      setResetAttempted(false);
                     }}
                     className="w-full flex justify-center py-2 px-4 border border-emerald-600 text-emerald-600 rounded-md shadow-sm text-sm font-medium hover:bg-emerald-50 transition-colors"
                   >
                     Try Different Email
                   </button>
                   <button
-                    onClick={() => {
-                      setShowPasswordReset(false);
-                      setResetSent(false);
-                      setResetEmail('');
-                    }}
+                    onClick={resetPasswordResetState}
                     className="w-full flex justify-center py-2 px-4 border border-gray-300 text-gray-700 rounded-md shadow-sm text-sm font-medium hover:bg-gray-50 transition-colors"
                   >
                     Back to Sign In
@@ -282,6 +333,20 @@ const Auth: React.FC = () => {
               </div>
             ) : (
               <form className="space-y-6" onSubmit={handlePasswordReset}>
+                {/* Warning about explicit action required */}
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+                  <div className="flex items-start">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 mr-3 flex-shrink-0" />
+                    <div>
+                      <h4 className="text-sm font-medium text-amber-900">Action Required</h4>
+                      <p className="text-sm text-amber-800 mt-1">
+                        You must click "Send Password Reset Email" below to receive a new reset link. 
+                        No email will be sent automatically.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-6">
                   <div className="flex items-start">
                     <Mail className="w-5 h-5 text-emerald-600 mt-0.5 mr-3 flex-shrink-0" />
@@ -308,6 +373,7 @@ const Auth: React.FC = () => {
                       onChange={(e) => setResetEmail(e.target.value)}
                       className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"
                       placeholder="Enter your email address"
+                      disabled={resetLoading}
                     />
                     <Mail className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
                   </div>
@@ -316,14 +382,36 @@ const Auth: React.FC = () => {
                   </p>
                 </div>
 
+                {resetAttempted && !resetSent && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p className="text-sm text-blue-800">
+                      <strong>Email sent!</strong> If you don't see it in a few minutes, check your spam folder.
+                    </p>
+                  </div>
+                )}
+
                 <div>
                   <button
                     type="submit"
-                    disabled={resetLoading}
-                    className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={resetLoading || !resetEmail.trim()}
+                    className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    {resetLoading ? 'Sending Reset Email...' : 'Send Password Reset Email'}
+                    {resetLoading ? (
+                      <div className="flex items-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Sending Reset Email...
+                      </div>
+                    ) : (
+                      'Send Password Reset Email'
+                    )}
                   </button>
+                </div>
+
+                <div className="text-center">
+                  <p className="text-xs text-gray-500">
+                    By clicking "Send Password Reset Email", you confirm that you want to reset your password 
+                    and agree to receive a reset email from Sustainable Acts of Kindness.
+                  </p>
                 </div>
               </form>
             )}
@@ -385,6 +473,8 @@ const Auth: React.FC = () => {
                   onClick={() => {
                     setResetEmail(email);
                     setShowPasswordReset(true);
+                    setResetSent(false);
+                    setResetAttempted(false);
                   }}
                   className="text-sm text-emerald-600 hover:text-emerald-500 font-medium"
                 >
