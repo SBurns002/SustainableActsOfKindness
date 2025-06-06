@@ -16,11 +16,13 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
   const [verificationCode, setVerificationCode] = useState('');
   const [factorId, setFactorId] = useState<string | null>(null);
   const [step, setStep] = useState<'initial' | 'scan' | 'verify' | 'success'>('initial');
+  const [debugInfo, setDebugInfo] = useState<string>('');
 
   const enrollMFA = async () => {
     try {
       setIsLoading(true);
       setError(null);
+      setDebugInfo('Checking existing MFA factors...');
 
       // First check if user already has MFA enabled
       const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
@@ -35,6 +37,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
         }
       }
 
+      setDebugInfo('Enrolling new MFA factor...');
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
         friendlyName: `Authenticator App - ${new Date().toLocaleDateString()}`
@@ -56,10 +59,12 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
       }
 
       if (data) {
+        console.log('MFA enrollment successful:', data);
         setQrCode(data.totp.qr_code);
         setSecret(data.totp.secret);
         setFactorId(data.id);
         setStep('scan');
+        setDebugInfo('QR code generated successfully');
       }
     } catch (err) {
       console.error('Unexpected error during MFA enrollment:', err);
@@ -75,43 +80,151 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
     try {
       setIsLoading(true);
       setError(null);
+      setDebugInfo('Creating verification challenge...');
 
-      const { data, error } = await supabase.auth.mfa.challengeAndVerify({
+      console.log('Starting MFA verification process:', {
+        factorId: factorId.substring(0, 8) + '...',
+        codeLength: verificationCode.length
+      });
+
+      // Create a challenge first
+      const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
+        factorId
+      });
+
+      if (challengeError) {
+        console.error('Challenge creation failed:', challengeError);
+        throw new Error(`Challenge failed: ${challengeError.message}`);
+      }
+
+      if (!challengeData?.id) {
+        throw new Error('No challenge ID received');
+      }
+
+      console.log('Challenge created:', challengeData.id);
+      setDebugInfo('Challenge created, verifying code...');
+
+      // Now verify the code with the challenge
+      const verificationPromise = supabase.auth.mfa.verify({
         factorId,
+        challengeId: challengeData.id,
         code: verificationCode
       });
 
-      if (error) {
-        console.error('MFA verification error:', error);
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Verification timed out after 30 seconds')), 30000);
+      });
+
+      const { data: verifyData, error: verifyError } = await Promise.race([
+        verificationPromise,
+        timeoutPromise
+      ]) as any;
+
+      if (verifyError) {
+        console.error('MFA verification error:', verifyError);
         
-        if (error.message?.includes('invalid_code')) {
+        if (verifyError.message?.includes('invalid_code')) {
           setError('Invalid verification code. Please check your authenticator app and try again.');
-        } else if (error.message?.includes('expired')) {
+        } else if (verifyError.message?.includes('expired')) {
           setError('Verification code has expired. Please try again with a new code.');
-        } else if (error.message?.includes('factor_id must be an UUID')) {
+        } else if (verifyError.message?.includes('factor_id must be an UUID')) {
           setError('Invalid factor ID. Please restart the MFA setup process.');
           setStep('initial');
           setFactorId(null);
           setQrCode(null);
           setSecret(null);
+        } else if (verifyError.message?.includes('timed out')) {
+          setError('Verification timed out. Please try again with a fresh code.');
         } else {
-          setError(`Verification failed: ${error.message}`);
+          setError(`Verification failed: ${verifyError.message}`);
+        }
+        return;
+      }
+
+      if (verifyData) {
+        console.log('MFA verification successful:', verifyData);
+        setDebugInfo('Verification successful!');
+        setStep('success');
+        toast.success('Two-factor authentication has been successfully enabled!');
+        
+        // Refresh the page to show updated MFA status
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      }
+    } catch (err: any) {
+      console.error('Unexpected error during MFA verification:', err);
+      
+      if (err.message?.includes('timed out')) {
+        setError('Verification timed out. Please try again with a fresh code from your authenticator app.');
+      } else {
+        setError('An unexpected error occurred during verification. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Alternative verification method using challengeAndVerify
+  const alternativeVerify = async () => {
+    if (!factorId || !verificationCode) return;
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      setDebugInfo('Using alternative verification method...');
+
+      console.log('Attempting challengeAndVerify for factor:', factorId);
+
+      const challengeAndVerifyPromise = supabase.auth.mfa.challengeAndVerify({
+        factorId,
+        code: verificationCode
+      });
+
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Alternative verification timed out after 30 seconds')), 30000);
+      });
+
+      const { data, error } = await Promise.race([
+        challengeAndVerifyPromise,
+        timeoutPromise
+      ]) as any;
+
+      if (error) {
+        console.error('ChallengeAndVerify failed:', error);
+        
+        if (error.message?.includes('invalid_code')) {
+          setError('Invalid verification code. Please check your authenticator app and try again.');
+        } else if (error.message?.includes('expired')) {
+          setError('Verification code has expired. Please try again with a new code.');
+        } else if (error.message?.includes('timed out')) {
+          setError('Alternative verification also timed out. Please check your internet connection.');
+        } else {
+          setError(`Alternative verification failed: ${error.message}`);
         }
         return;
       }
 
       if (data) {
+        console.log('Alternative verification successful:', data);
+        setDebugInfo('Alternative verification successful!');
         setStep('success');
         toast.success('Two-factor authentication has been successfully enabled!');
         
-        // Call onComplete after a brief delay to show success state
+        // Refresh the page to show updated MFA status
         setTimeout(() => {
-          onComplete();
+          window.location.reload();
         }, 1500);
       }
-    } catch (err) {
-      console.error('Unexpected error during MFA verification:', err);
-      setError('An unexpected error occurred during verification. Please try again.');
+    } catch (err: any) {
+      console.error('Alternative verification error:', err);
+      
+      if (err.message?.includes('timed out')) {
+        setError('Alternative verification also timed out. Please check your internet connection and try again.');
+      } else {
+        setError('Alternative verification failed. Please try restarting the setup process.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -125,6 +238,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
     setFactorId(null);
     setStep('initial');
     setIsLoading(false);
+    setDebugInfo('');
   };
 
   return (
@@ -146,6 +260,13 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
           )}
         </div>
 
+        {debugInfo && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-blue-800 text-sm font-medium">Status:</p>
+            <p className="text-blue-700 text-sm">{debugInfo}</p>
+          </div>
+        )}
+
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
             <div className="flex items-start gap-3">
@@ -166,14 +287,25 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
                 )}
               </div>
             </div>
-            <button
-              onClick={retrySetup}
-              className="mt-3 flex items-center gap-2 text-red-600 hover:text-red-700 text-sm font-medium"
-              disabled={isLoading}
-            >
-              <RefreshCw className="w-4 h-4" />
-              Try Again
-            </button>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                onClick={retrySetup}
+                className="text-red-600 hover:text-red-700 text-sm font-medium"
+                disabled={isLoading}
+              >
+                <RefreshCw className="w-3 h-3 inline mr-1" />
+                Try Again
+              </button>
+              {step === 'scan' && factorId && (
+                <button
+                  onClick={alternativeVerify}
+                  className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                  disabled={isLoading || verificationCode.length !== 6}
+                >
+                  Alternative Method
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -237,6 +369,9 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
 
             <div>
               <h3 className="font-medium text-gray-900 mb-3">Step 2: Enter Verification Code</h3>
+              <p className="text-sm text-gray-600 mb-3">
+                Enter the 6-digit code from your authenticator app:
+              </p>
               <input
                 type="text"
                 value={verificationCode}
@@ -247,6 +382,9 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
                 autoFocus
                 disabled={isLoading}
               />
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                Make sure to use the current code from your app
+              </p>
             </div>
 
             <div className="flex gap-3">
@@ -265,7 +403,8 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
                 {isLoading ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    Verifying...
+                    {debugInfo.includes('Challenge') ? 'Creating...' : 
+                     debugInfo.includes('verifying') ? 'Verifying...' : 'Processing...'}
                   </>
                 ) : (
                   'Verify & Enable'
