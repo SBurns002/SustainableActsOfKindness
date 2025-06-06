@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, GeoJSON, ZoomControl } from 'react-leaflet';
 import { useNavigate } from 'react-router-dom';
-import { Home, Info, BookOpen, Mail, LogIn, UserCircle } from 'lucide-react';
+import { Home, Info, BookOpen, Mail, LogIn, UserCircle, Search, MapPin, Calendar, Users, Clock } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { eventDataManager } from '../lib/eventDataManager';
 import DateRangeFilter from './DateRangeFilter';
@@ -14,9 +14,11 @@ interface DateRange {
   endDate: Date | null;
 }
 
-// Simple geocoding function for US zip codes (approximate center coordinates)
-const getZipCodeCoordinates = (zipCode: string): [number, number] | null => {
-  // This is a simplified geocoding - in production you'd use a proper geocoding service
+// Enhanced geocoding function for US zip codes and cities
+const getLocationCoordinates = (location: string): [number, number] | null => {
+  const cleanLocation = location.trim().toLowerCase();
+  
+  // Zip code mapping (expanded)
   const zipCodeMap: { [key: string]: [number, number] } = {
     // Massachusetts
     '02101': [42.3601, -71.0589], // Boston
@@ -48,22 +50,74 @@ const getZipCodeCoordinates = (zipCode: string): [number, number] | null => {
     '78746': [30.2672, -97.7431], // Austin, TX
   };
 
-  // Remove any non-digit characters and get first 5 digits
-  const cleanZip = zipCode.replace(/\D/g, '').substring(0, 5);
-  
-  // Try exact match first
-  if (zipCodeMap[cleanZip]) {
-    return zipCodeMap[cleanZip];
-  }
-  
-  // Try partial matches for nearby areas
-  const zipPrefix = cleanZip.substring(0, 3);
-  for (const [zip, coords] of Object.entries(zipCodeMap)) {
-    if (zip.startsWith(zipPrefix)) {
-      return coords;
+  // City + State mapping
+  const cityStateMap: { [key: string]: [number, number] } = {
+    'boston, ma': [42.3601, -71.0589],
+    'boston, massachusetts': [42.3601, -71.0589],
+    'cambridge, ma': [42.3736, -71.1097],
+    'cambridge, massachusetts': [42.3736, -71.1097],
+    'salem, ma': [42.5195, -70.8967],
+    'salem, massachusetts': [42.5195, -70.8967],
+    'new york, ny': [40.7505, -73.9934],
+    'new york, new york': [40.7505, -73.9934],
+    'chicago, il': [41.8781, -87.6298],
+    'chicago, illinois': [41.8781, -87.6298],
+    'los angeles, ca': [34.0522, -118.2437],
+    'los angeles, california': [34.0522, -118.2437],
+    'seattle, wa': [47.6062, -122.3321],
+    'seattle, washington': [47.6062, -122.3321],
+    'portland, or': [45.5152, -122.6784],
+    'portland, oregon': [45.5152, -122.6784],
+    'austin, tx': [30.2672, -97.7431],
+    'austin, texas': [30.2672, -97.7431],
+    'miami, fl': [25.7617, -80.1918],
+    'miami, florida': [25.7617, -80.1918],
+    'denver, co': [39.7392, -104.9903],
+    'denver, colorado': [39.7392, -104.9903],
+    'phoenix, az': [33.4484, -112.0740],
+    'phoenix, arizona': [33.4484, -112.0740],
+  };
+
+  // Check if it's a zip code (5 digits)
+  const zipMatch = cleanLocation.match(/^\d{5}$/);
+  if (zipMatch) {
+    const zip = zipMatch[0];
+    if (zipCodeMap[zip]) {
+      return zipCodeMap[zip];
+    }
+    
+    // Try partial matches for nearby areas
+    const zipPrefix = zip.substring(0, 3);
+    for (const [zipCode, coords] of Object.entries(zipCodeMap)) {
+      if (zipCode.startsWith(zipPrefix)) {
+        return coords;
+      }
     }
   }
-  
+
+  // Check city, state format
+  if (cityStateMap[cleanLocation]) {
+    return cityStateMap[cleanLocation];
+  }
+
+  // Try variations with common abbreviations
+  const variations = [
+    cleanLocation.replace(/\bmass\b/, 'massachusetts'),
+    cleanLocation.replace(/\bmassachusetts\b/, 'ma'),
+    cleanLocation.replace(/\bcalifornia\b/, 'ca'),
+    cleanLocation.replace(/\bca\b/, 'california'),
+    cleanLocation.replace(/\btexas\b/, 'tx'),
+    cleanLocation.replace(/\btx\b/, 'texas'),
+    cleanLocation.replace(/\bflorida\b/, 'fl'),
+    cleanLocation.replace(/\bfl\b/, 'florida'),
+  ];
+
+  for (const variation of variations) {
+    if (cityStateMap[variation]) {
+      return cityStateMap[variation];
+    }
+  }
+
   return null;
 };
 
@@ -76,10 +130,13 @@ const MapView: React.FC = () => {
   const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>([]);
   const [filteredData, setFilteredData] = useState(eventDataManager.getMergedEventData());
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [mapKey, setMapKey] = useState(0); // Force map re-render when data changes
-  const [mapCenter, setMapCenter] = useState<[number, number]>([42.3601, -71.0589]); // Default to Boston
+  const [mapKey, setMapKey] = useState(0);
+  const [mapCenter, setMapCenter] = useState<[number, number]>([42.3601, -71.0589]);
   const [mapZoom, setMapZoom] = useState(12);
   const [userZipCode, setUserZipCode] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentLocation, setCurrentLocation] = useState<string | null>(null);
+  const [showEventsList, setShowEventsList] = useState(false);
 
   useEffect(() => {
     // Check for user's preferred zip code
@@ -87,11 +144,12 @@ const MapView: React.FC = () => {
       // First check localStorage for immediate redirect
       const storedZipCode = localStorage.getItem('userZipCode');
       if (storedZipCode) {
-        const coords = getZipCodeCoordinates(storedZipCode);
+        const coords = getLocationCoordinates(storedZipCode);
         if (coords) {
           setMapCenter(coords);
           setMapZoom(13);
           setUserZipCode(storedZipCode);
+          setCurrentLocation(storedZipCode);
           // Clear from localStorage after using it
           localStorage.removeItem('userZipCode');
         }
@@ -108,11 +166,12 @@ const MapView: React.FC = () => {
           .maybeSingle();
 
         if (profile?.zip_code) {
-          const coords = getZipCodeCoordinates(profile.zip_code);
+          const coords = getLocationCoordinates(profile.zip_code);
           if (coords) {
             setMapCenter(coords);
             setMapZoom(13);
             setUserZipCode(profile.zip_code);
+            setCurrentLocation(profile.zip_code);
           }
         }
       }
@@ -170,6 +229,24 @@ const MapView: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+
+    const coords = getLocationCoordinates(searchQuery.trim());
+    if (coords) {
+      setMapCenter(coords);
+      setMapZoom(13);
+      setCurrentLocation(searchQuery.trim());
+      setUserZipCode(null); // Clear user zip code indicator since this is a search
+      setShowEventsList(true);
+      setMapKey(prev => prev + 1);
+    } else {
+      // Show error or suggestion
+      alert('Location not found. Please try a zip code (e.g., 02101) or city, state (e.g., Boston, MA)');
+    }
+  };
+
   const getFeatureStyle = (feature: any) => {
     const { eventType } = feature.properties;
     
@@ -206,7 +283,6 @@ const MapView: React.FC = () => {
 
   const onEachFeature = (feature: any, layer: any) => {
     layer.on('click', () => {
-      // Use the current name (which might be updated) for navigation
       navigate(`/event/${encodeURIComponent(feature.properties.name)}`);
     });
     
@@ -255,6 +331,28 @@ const MapView: React.FC = () => {
     }
   };
 
+  const getEventTypeColor = (eventType: string) => {
+    switch (eventType) {
+      case 'cleanup': return 'bg-blue-100 text-blue-800';
+      case 'treePlanting': return 'bg-green-100 text-green-800';
+      case 'garden': return 'bg-amber-100 text-amber-800';
+      case 'education': return 'bg-purple-100 text-purple-800';
+      case 'workshop': return 'bg-indigo-100 text-indigo-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getEventTypeLabel = (eventType: string) => {
+    switch (eventType) {
+      case 'cleanup': return 'Environmental Cleanup';
+      case 'treePlanting': return 'Tree Planting';
+      case 'garden': return 'Community Garden';
+      case 'education': return 'Education';
+      case 'workshop': return 'Workshop';
+      default: return eventType;
+    }
+  };
+
   const navigationItems = [
     { icon: Home, label: 'Home', path: '/' },
     { icon: Info, label: 'About', path: '/about' },
@@ -264,20 +362,118 @@ const MapView: React.FC = () => {
 
   return (
     <div className="relative w-full h-full flex">
-      {/* Left sidebar with filters and navigation */}
+      {/* Left sidebar with search, filters and navigation */}
       <div className="w-80 bg-white shadow-lg z-[1001] overflow-y-auto">
         <div className="p-4">
-          {userZipCode && (
-            <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
-              <p className="text-emerald-800 text-sm font-medium">
-                📍 Showing events near {userZipCode}
-              </p>
-              <p className="text-emerald-700 text-xs mt-1">
-                Update your location in your profile to see events in a different area
-              </p>
+          {/* Search Section */}
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4 text-center">Find Sustainability Events</h2>
+            <form onSubmit={handleSearch} className="space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Enter zip code or city, state..."
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full bg-emerald-600 text-white py-3 px-4 rounded-lg hover:bg-emerald-700 transition-colors font-medium"
+              >
+                Search Events
+              </button>
+            </form>
+            
+            {/* Current Location Indicator */}
+            {(currentLocation || userZipCode) && (
+              <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <MapPin className="w-4 h-4 text-emerald-600" />
+                  <p className="text-emerald-800 text-sm font-medium">
+                    {currentLocation ? `Showing events near ${currentLocation}` : `Showing events near ${userZipCode}`}
+                  </p>
+                </div>
+                {userZipCode && !currentLocation && (
+                  <p className="text-emerald-700 text-xs mt-1">
+                    From your profile preferences
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Events List Toggle */}
+          {filteredData.features.length > 0 && (
+            <div className="mb-6">
+              <button
+                onClick={() => setShowEventsList(!showEventsList)}
+                className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                {showEventsList ? 'Hide Events List' : `Show Events List (${filteredData.features.length})`}
+              </button>
             </div>
           )}
-          
+
+          {/* Events List */}
+          {showEventsList && (
+            <div className="mb-6 max-h-96 overflow-y-auto">
+              <h3 className="text-md font-semibold text-gray-800 mb-3">Events in This Area</h3>
+              <div className="space-y-3">
+                {filteredData.features.map((feature: any, index: number) => (
+                  <div
+                    key={`${feature.properties.name}-${index}`}
+                    className="border border-gray-200 rounded-lg p-3 hover:border-emerald-500 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/event/${encodeURIComponent(feature.properties.name)}`)}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <h4 className="font-medium text-gray-900 text-sm line-clamp-2">{feature.properties.name}</h4>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getEventTypeColor(feature.properties.eventType)}`}>
+                        {getEventTypeLabel(feature.properties.eventType)}
+                      </span>
+                    </div>
+                    
+                    <div className="space-y-1 text-xs text-gray-600">
+                      <div className="flex items-center space-x-1">
+                        <Calendar className="w-3 h-3" />
+                        <span>{new Date(feature.properties.date).toLocaleDateString()}</span>
+                      </div>
+                      
+                      {feature.properties.time && (
+                        <div className="flex items-center space-x-1">
+                          <Clock className="w-3 h-3" />
+                          <span>{feature.properties.time}</span>
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center space-x-1">
+                        <MapPin className="w-3 h-3" />
+                        <span className="line-clamp-1">{feature.properties.location}</span>
+                      </div>
+                      
+                      {feature.properties.eventType === 'treePlanting' && feature.properties.trees && (
+                        <div className="flex items-center space-x-1">
+                          <Users className="w-3 h-3" />
+                          <span>{feature.properties.trees} trees to plant</span>
+                        </div>
+                      )}
+                      
+                      {feature.properties.eventType === 'garden' && feature.properties.plots && (
+                        <div className="flex items-center space-x-1">
+                          <Users className="w-3 h-3" />
+                          <span>{feature.properties.plots} garden plots</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Filters */}
           <DateRangeFilter 
             onDateRangeChange={setDateRange}
             onEventTypeChange={setSelectedEventTypes}
@@ -328,7 +524,7 @@ const MapView: React.FC = () => {
       {/* Map container */}
       <div className="flex-1">
         <MapContainer
-          key={`${mapKey}-${mapCenter[0]}-${mapCenter[1]}`} // Force re-render when center changes
+          key={`${mapKey}-${mapCenter[0]}-${mapCenter[1]}`}
           center={mapCenter}
           zoom={mapZoom}
           className="w-full h-full"
