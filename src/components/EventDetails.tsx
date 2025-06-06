@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Calendar, Users, MapPin, AlertCircle, ArrowLeft, LogIn } from 'lucide-react';
+import { Calendar, Users, MapPin, AlertCircle, ArrowLeft, LogIn, UserMinus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cleanupData } from '../data/cleanupData';
 
@@ -84,6 +84,22 @@ const EventDetails: React.FC = () => {
     }
   };
 
+  const removeEventReminder = async (userId: string) => {
+    try {
+      const { error } = await supabase
+        .from('event_reminders')
+        .delete()
+        .eq('user_id', userId)
+        .eq('event_id', id);
+
+      if (error) {
+        console.error('Error removing reminder:', error);
+      }
+    } catch (error) {
+      console.error('Error removing event reminder:', error);
+    }
+  };
+
   const handleJoinEvent = async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
@@ -114,6 +130,34 @@ const EventDetails: React.FC = () => {
       toast.success('Successfully joined the event! A reminder has been set for you.');
     } catch (error) {
       toast.error('Failed to join the event. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLeaveEvent = async () => {
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('event_participants')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('event_id', id);
+
+      if (error) throw error;
+
+      // Remove reminder for the event
+      await removeEventReminder(user.id);
+
+      setIsParticipating(false);
+      setParticipantCount(prev => prev - 1);
+      toast.success('Successfully left the event. Your reminder has been removed.');
+    } catch (error) {
+      toast.error('Failed to leave the event. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -183,9 +227,19 @@ const EventDetails: React.FC = () => {
             )}
 
             {isAuthenticated && isParticipating && (
-              <div className="mt-8 flex items-center text-emerald-600">
-                <AlertCircle className="w-5 h-5 mr-2" />
-                <span>You're registered for this event!</span>
+              <div className="mt-8 space-y-4">
+                <div className="flex items-center text-emerald-600 bg-emerald-50 p-4 rounded-lg">
+                  <AlertCircle className="w-5 h-5 mr-2" />
+                  <span>You're registered for this event!</span>
+                </div>
+                <button
+                  onClick={handleLeaveEvent}
+                  disabled={loading}
+                  className="w-full bg-red-600 text-white py-3 px-6 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center"
+                >
+                  <UserMinus className="w-5 h-5 mr-2" />
+                  {loading ? 'Leaving...' : 'Leave Event'}
+                </button>
               </div>
             )}
           </div>

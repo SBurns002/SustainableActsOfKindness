@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Calendar, Bell, Settings, Loader, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Calendar, Bell, Settings, Loader, Clock, CheckCircle, AlertCircle, UserMinus, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface EventParticipation {
@@ -113,6 +113,40 @@ const Profile: React.FC = () => {
     }
   };
 
+  const handleLeaveEvent = async (eventId: string, eventName: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Remove from event participants
+      const { error: participationError } = await supabase
+        .from('event_participants')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('event_id', eventId);
+
+      if (participationError) throw participationError;
+
+      // Remove associated reminders
+      const { error: reminderError } = await supabase
+        .from('event_reminders')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('event_id', eventId);
+
+      if (reminderError) throw reminderError;
+
+      // Update local state
+      setParticipations(participations.filter(p => p.event_id !== eventId));
+      setReminders(reminders.filter(r => r.event_id !== eventId));
+
+      toast.success(`Successfully left ${eventName}`);
+    } catch (error) {
+      console.error('Error leaving event:', error);
+      toast.error('Failed to leave event');
+    }
+  };
+
   const getEventStatus = (eventDate: string) => {
     const now = new Date();
     const event = new Date(eventDate);
@@ -220,9 +254,17 @@ const Profile: React.FC = () => {
                                 )}
                                 <button
                                   onClick={() => navigate(`/event/${encodeURIComponent(reminder.event_name)}`)}
-                                  className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                                  className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center space-x-1"
                                 >
-                                  View Event
+                                  <Eye className="w-4 h-4" />
+                                  <span>View</span>
+                                </button>
+                                <button
+                                  onClick={() => handleLeaveEvent(reminder.event_id, reminder.event_name)}
+                                  className="text-red-600 hover:text-red-700 text-sm font-medium flex items-center space-x-1"
+                                >
+                                  <UserMinus className="w-4 h-4" />
+                                  <span>Leave</span>
                                 </button>
                               </div>
                             </div>
@@ -283,7 +325,7 @@ const Profile: React.FC = () => {
                     className="border border-gray-200 rounded-lg p-4 hover:border-emerald-500 transition-colors"
                   >
                     <div className="flex items-start justify-between">
-                      <div>
+                      <div className="flex-1">
                         <h3 className="font-medium text-gray-900">{participation.event_id}</h3>
                         <p className="text-sm text-gray-500">
                           Joined on {new Date(participation.created_at).toLocaleDateString()}
@@ -306,6 +348,13 @@ const Profile: React.FC = () => {
                             <span className="ml-2 text-sm font-medium text-gray-700">Email</span>
                           </label>
                         </div>
+                        <button
+                          onClick={() => handleLeaveEvent(participation.event_id, participation.event_id)}
+                          className="text-red-600 hover:text-red-700 text-sm font-medium flex items-center space-x-1"
+                        >
+                          <UserMinus className="w-4 h-4" />
+                          <span>Leave</span>
+                        </button>
                       </div>
                     </div>
                   </div>
