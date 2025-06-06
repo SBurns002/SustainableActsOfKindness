@@ -315,6 +315,8 @@ const Profile: React.FC = () => {
       }
 
       console.log('MFA verification successful:', data);
+      
+      // Set success status immediately
       setVerificationStatus('success');
 
       // Generate backup codes (simulated for demo)
@@ -323,19 +325,27 @@ const Profile: React.FC = () => {
       );
       setBackupCodes(codes);
       
-      // Show success message
+      // Show success message immediately
       toast.success('MFA successfully enabled!');
       
-      // Wait a moment to show success state, then proceed
+      // Wait to show success state, then proceed
       setTimeout(async () => {
-        // Clear form data and close setup modal
-        resetMfaSetup();
-        
-        // Show backup codes modal
-        setShowBackupCodes(true);
-        
-        // Force refresh MFA factors to show the new enabled state
-        await fetchMfaFactors();
+        try {
+          // Force refresh MFA factors first
+          await fetchMfaFactors();
+          
+          // Clear form data and close setup modal
+          resetMfaSetup();
+          
+          // Show backup codes modal
+          setShowBackupCodes(true);
+          
+        } catch (refreshError) {
+          console.error('Error refreshing MFA factors:', refreshError);
+          // Still proceed with closing modal and showing backup codes
+          resetMfaSetup();
+          setShowBackupCodes(true);
+        }
       }, 1500);
       
     } catch (error) {
@@ -683,7 +693,7 @@ const Profile: React.FC = () => {
   const hasMfaEnabled = mfaFactors.length > 0 && mfaFactors.some(f => f.status === 'verified');
 
   // Check if verification button should be enabled
-  const isVerificationButtonEnabled = verificationCode.length === 6 && /^\d{6}$/.test(verificationCode) && verificationStatus !== 'verifying';
+  const isVerificationButtonEnabled = verificationCode.length === 6 && /^\d{6}$/.test(verificationCode) && verificationStatus !== 'verifying' && verificationStatus !== 'success';
 
   // Get button text and styling based on verification status
   const getVerificationButtonProps = () => {
@@ -691,25 +701,25 @@ const Profile: React.FC = () => {
       case 'verifying':
         return {
           text: 'Verifying...',
-          className: 'flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg cursor-not-allowed',
+          className: 'flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg cursor-not-allowed flex items-center justify-center',
           disabled: true
         };
       case 'success':
         return {
-          text: 'Success!',
-          className: 'flex-1 px-4 py-2 bg-green-500 text-white rounded-lg cursor-not-allowed',
+          text: '✓ Success!',
+          className: 'flex-1 px-4 py-2 bg-green-500 text-white rounded-lg cursor-not-allowed flex items-center justify-center',
           disabled: true
         };
       case 'error':
         return {
           text: 'Try Again',
-          className: 'flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors',
+          className: 'flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center justify-center',
           disabled: false
         };
       default:
         return {
           text: 'Verify & Enable',
-          className: `flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+          className: `flex-1 px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center ${
             isVerificationButtonEnabled
               ? 'bg-emerald-600 text-white hover:bg-emerald-700'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
@@ -1119,7 +1129,8 @@ const Profile: React.FC = () => {
               <div className="flex space-x-3">
                 <button
                   onClick={resetMfaSetup}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  disabled={verificationStatus === 'verifying' || verificationStatus === 'success'}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
@@ -1128,6 +1139,9 @@ const Profile: React.FC = () => {
                   disabled={buttonProps.disabled}
                   className={buttonProps.className}
                 >
+                  {verificationStatus === 'verifying' && (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  )}
                   {buttonProps.text}
                 </button>
               </div>
