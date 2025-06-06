@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Calendar, Bell, Settings, Loader, Clock, CheckCircle, AlertCircle, UserMinus, Eye, Plus, Shield, Smartphone, Key } from 'lucide-react';
@@ -45,6 +45,7 @@ const Profile: React.FC = () => {
   const [mfaFactors, setMfaFactors] = useState<MFAFactor[]>([]);
   const [showMfaSetup, setShowMfaSetup] = useState(false);
   const [showMfaDisable, setShowMfaDisable] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   const getEventDetails = (eventId: string) => {
     return cleanupData.features.find(
@@ -60,7 +61,7 @@ const Profile: React.FC = () => {
     return diffDays;
   };
 
-  const fetchMfaFactors = async () => {
+  const fetchMfaFactors = useCallback(async () => {
     try {
       const { data, error } = await supabase.auth.mfa.listFactors();
       
@@ -73,7 +74,7 @@ const Profile: React.FC = () => {
     } catch (error) {
       console.error('Error fetching MFA factors:', error);
     }
-  };
+  }, []);
 
   const createMissingReminders = async () => {
     if (!currentUser || participations.length === 0) return;
@@ -134,15 +135,25 @@ const Profile: React.FC = () => {
     }
   };
 
-  const fetchUserData = async (forceRefresh = false) => {
+  const fetchUserData = useCallback(async (forceRefresh = false) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      console.log('Fetching user data, forceRefresh:', forceRefresh);
+      
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        console.error('Error getting user:', userError);
+        navigate('/auth');
+        return;
+      }
       
       if (!user) {
+        console.log('No user found, redirecting to auth');
         navigate('/auth');
         return;
       }
 
+      console.log('User found:', user.id);
       setCurrentUser(user);
       setUserEmail(user.email);
 
@@ -151,6 +162,7 @@ const Profile: React.FC = () => {
       }
 
       // Fetch participations with explicit user filter
+      console.log('Fetching participations for user:', user.id);
       const { data: participationsData, error: participationsError } = await supabase
         .from('event_participants')
         .select('*')
@@ -161,11 +173,12 @@ const Profile: React.FC = () => {
         console.error('Error fetching participations:', participationsError);
         setParticipations([]);
       } else {
-        console.log('Fetched participations for user:', user.id, participationsData);
+        console.log('Fetched participations:', participationsData?.length || 0);
         setParticipations(participationsData || []);
       }
 
       // Fetch reminders with explicit user filter
+      console.log('Fetching reminders for user:', user.id);
       const { data: remindersData, error: remindersError } = await supabase
         .from('event_reminders')
         .select('*')
@@ -176,12 +189,15 @@ const Profile: React.FC = () => {
         console.error('Error fetching reminders:', remindersError);
         setReminders([]);
       } else {
-        console.log('Fetched reminders for user:', user.id, remindersData);
+        console.log('Fetched reminders:', remindersData?.length || 0);
         setReminders(remindersData || []);
       }
 
       // Fetch MFA factors
       await fetchMfaFactors();
+
+      setDataLoaded(true);
+      console.log('User data fetch completed successfully');
 
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -189,18 +205,24 @@ const Profile: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [navigate, fetchMfaFactors]);
 
+  // Initial data fetch
   useEffect(() => {
+    console.log('Profile component mounted, fetching initial data');
     fetchUserData();
-  }, [navigate]);
+  }, [fetchUserData]);
 
   // Listen for auth state changes and refresh data
   useEffect(() => {
+    console.log('Setting up auth state listener');
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, !!session);
       if (session) {
         setCurrentUser(session.user);
-        await fetchUserData(true);
+        if (dataLoaded) {
+          await fetchUserData(true);
+        }
       } else {
         setCurrentUser(null);
         setParticipations([]);
@@ -210,14 +232,17 @@ const Profile: React.FC = () => {
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+    return () => {
+      console.log('Cleaning up auth state listener');
+      subscription.unsubscribe();
+    };
+  }, [navigate, fetchUserData, dataLoaded]);
 
   // Listen for custom events from other components
   useEffect(() => {
     const handleParticipationChange = (event: any) => {
       console.log('Received participation change event:', event.detail);
-      if (currentUser && event.detail.userId === currentUser.id) {
+      if (currentUser && event.detail.userId === currentUser.id && dataLoaded) {
         fetchUserData(true);
       }
     };
@@ -226,12 +251,13 @@ const Profile: React.FC = () => {
     return () => {
       window.removeEventListener('eventParticipationChanged', handleParticipationChange);
     };
-  }, [currentUser]);
+  }, [currentUser, fetchUserData, dataLoaded]);
 
   // Set up real-time subscription with better error handling
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || !dataLoaded) return;
 
+    console.log('Setting up real-time subscriptions for user:', currentUser.id);
     let participationsChannel: any = null;
     let remindersChannel: any = null;
 
@@ -287,6 +313,7 @@ const Profile: React.FC = () => {
 
     return () => {
       try {
+        console.log('Cleaning up real-time subscriptions');
         if (participationsChannel) {
           supabase.removeChannel(participationsChannel);
         }
@@ -297,7 +324,7 @@ const Profile: React.FC = () => {
         console.warn('Error cleaning up real-time subscriptions:', error);
       }
     };
-  }, [currentUser]);
+  }, [currentUser, fetchUserData, dataLoaded]);
 
   const updateNotificationPreferences = async (participationId: string, preferences: any) => {
     try {
@@ -465,7 +492,26 @@ const Profile: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader className="w-8 h-8 animate-spin text-emerald-600" />
+        <div className="text-center">
+          <Loader className="w-8 h-8 animate-spin text-emerald-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading your profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">Please sign in to view your profile</p>
+          <button
+            onClick={() => navigate('/auth')}
+            className="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition-colors"
+          >
+            Sign In
+          </button>
+        </div>
       </div>
     );
   }
