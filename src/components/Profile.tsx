@@ -135,6 +135,7 @@ const Profile: React.FC = () => {
         return;
       }
       
+      console.log('Fetched MFA factors:', data);
       setMfaFactors(data?.totp || []);
     } catch (error) {
       console.error('Error fetching MFA factors:', error);
@@ -300,12 +301,7 @@ const Profile: React.FC = () => {
         } else if (error.message?.includes('expired')) {
           toast.error('Verification code has expired. Please try setting up MFA again.');
           // Reset the setup process
-          setShowMfaSetup(false);
-          setQrCode(null);
-          setTotpSecret(null);
-          setVerificationCode('');
-          setEnrollmentId(null);
-          setChallengeId(null);
+          resetMfaSetup();
         } else {
           toast.error(`Verification failed: ${error.message}`);
         }
@@ -319,17 +315,17 @@ const Profile: React.FC = () => {
         Math.random().toString(36).substring(2, 10).toUpperCase()
       );
       setBackupCodes(codes);
-      setShowBackupCodes(true);
-      setShowMfaSetup(false);
       
-      // Clear form data
-      setQrCode(null);
-      setTotpSecret(null);
-      setVerificationCode('');
-      setEnrollmentId(null);
-      setChallengeId(null);
+      // Clear form data and close setup modal
+      resetMfaSetup();
+      
+      // Show backup codes modal
+      setShowBackupCodes(true);
       
       toast.success('MFA successfully enabled!');
+      
+      // Force refresh MFA factors to show the new enabled state
+      await new Promise(resolve => setTimeout(resolve, 500)); // Small delay to ensure backend is updated
       await fetchMfaFactors();
       
     } catch (error) {
