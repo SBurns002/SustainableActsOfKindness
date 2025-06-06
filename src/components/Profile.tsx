@@ -252,8 +252,8 @@ const Profile: React.FC = () => {
   };
 
   const verifyMfaEnrollment = async () => {
-    if (!enrollmentId || !verificationCode) {
-      toast.error('Please enter the verification code');
+    if (!enrollmentId || !verificationCode || verificationCode.length !== 6) {
+      toast.error('Please enter a valid 6-digit verification code');
       return;
     }
 
@@ -328,6 +328,14 @@ const Profile: React.FC = () => {
     );
     setBackupCodes(codes);
     toast.success('New backup codes generated');
+  };
+
+  // Handle verification code input with proper formatting
+  const handleVerificationCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+    if (value.length <= 6) {
+      setVerificationCode(value);
+    }
   };
 
   useEffect(() => {
@@ -580,6 +588,9 @@ const Profile: React.FC = () => {
   });
 
   const hasMfaEnabled = mfaFactors.length > 0 && mfaFactors.some(f => f.status === 'verified');
+
+  // Check if verification button should be enabled
+  const isVerificationButtonEnabled = !mfaLoading && verificationCode.length === 6 && /^\d{6}$/.test(verificationCode);
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -958,11 +969,15 @@ const Profile: React.FC = () => {
                 <input
                   type="text"
                   value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value)}
+                  onChange={handleVerificationCodeChange}
                   placeholder="000000"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-center text-lg font-mono"
                   maxLength={6}
+                  autoComplete="off"
                 />
+                <p className="text-xs text-gray-500 mt-1 text-center">
+                  Enter the 6-digit code from your authenticator app
+                </p>
               </div>
 
               <div className="flex space-x-3">
@@ -980,8 +995,12 @@ const Profile: React.FC = () => {
                 </button>
                 <button
                   onClick={verifyMfaEnrollment}
-                  disabled={mfaLoading || verificationCode.length !== 6}
-                  className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+                  disabled={!isVerificationButtonEnabled}
+                  className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                    isVerificationButtonEnabled
+                      ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
                 >
                   {mfaLoading ? 'Verifying...' : 'Verify & Enable'}
                 </button>
