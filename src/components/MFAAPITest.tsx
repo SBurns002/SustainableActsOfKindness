@@ -76,7 +76,23 @@ export default function MFAAPITest() {
         return user;
       });
 
-      // Test 2: Network Connectivity
+      // Test 2: Admin Access Check
+      await testStep('Admin Access Verification', async () => {
+        const { data: roles, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .eq('role', 'admin')
+          .limit(1);
+
+        if (error) throw error;
+        if (!roles || roles.length === 0) {
+          throw new Error('Admin privileges required to run MFA tests');
+        }
+        return { isAdmin: true, roles };
+      });
+
+      // Test 3: Network Connectivity
       await testStep('Network Connectivity', async () => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
@@ -105,14 +121,14 @@ export default function MFAAPITest() {
         }
       });
 
-      // Test 3: List Existing MFA Factors
+      // Test 4: List Existing MFA Factors
       const existingFactors = await testStep('List MFA Factors', async () => {
         const { data, error } = await supabase.auth.mfa.listFactors();
         if (error) throw error;
         return data;
       });
 
-      // Test 4: Clean up existing unverified factors
+      // Test 5: Clean up existing unverified factors
       if (existingFactors?.totp && existingFactors.totp.length > 0) {
         const unverifiedFactors = existingFactors.totp.filter(f => f.status !== 'verified');
         
@@ -132,11 +148,11 @@ export default function MFAAPITest() {
         }
       }
 
-      // Test 5: MFA Enrollment
+      // Test 6: MFA Enrollment
       const enrollmentData = await testStep('MFA Enrollment', async () => {
         const { data, error } = await supabase.auth.mfa.enroll({
           factorType: 'totp',
-          friendlyName: `API Test ${new Date().toISOString()}`
+          friendlyName: `Admin Test ${new Date().toISOString()}`
         });
         
         if (error) throw error;
@@ -148,7 +164,7 @@ export default function MFAAPITest() {
         return data;
       });
 
-      // Test 6: MFA Challenge Creation
+      // Test 7: MFA Challenge Creation
       const challengeData = await testStep('MFA Challenge Creation', async () => {
         if (!enrollmentData?.id) throw new Error('No factor ID from enrollment');
         
@@ -163,7 +179,7 @@ export default function MFAAPITest() {
         return data;
       });
 
-      // Test 7: Test MFA Verification with Invalid Code (to test the endpoint)
+      // Test 8: Test MFA Verification with Invalid Code (to test the endpoint)
       await testStep('MFA Verification Test (Invalid Code)', async () => {
         if (!enrollmentData?.id || !challengeData?.id) {
           throw new Error('Missing factor ID or challenge ID');
@@ -185,7 +201,7 @@ export default function MFAAPITest() {
         }
       });
 
-      // Test 8: Cleanup Test Factor
+      // Test 9: Cleanup Test Factor
       await testStep('Cleanup Test Factor', async () => {
         if (!enrollmentData?.id) throw new Error('No factor ID to cleanup');
         
@@ -197,7 +213,7 @@ export default function MFAAPITest() {
         return { cleaned: true };
       });
 
-      // Test 9: Final MFA Status Check
+      // Test 10: Final MFA Status Check
       await testStep('Final MFA Status Check', async () => {
         const { data, error } = await supabase.auth.mfa.listFactors();
         if (error) throw error;
@@ -244,11 +260,27 @@ export default function MFAAPITest() {
         <div className="flex items-center gap-3 mb-6">
           <Shield className="w-6 h-6 text-blue-600" />
           <h1 className="text-2xl font-bold text-gray-900">MFA API Testing Suite</h1>
+          <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full font-medium">
+            Admin Only
+          </span>
         </div>
 
         <div className="mb-6">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 className="font-medium text-amber-900">Administrator Access Required</h3>
+                <p className="text-amber-800 text-sm mt-1">
+                  This comprehensive MFA testing suite is restricted to administrator users only. 
+                  It will test all MFA API endpoints to identify potential issues with the authentication system.
+                </p>
+              </div>
+            </div>
+          </div>
+          
           <p className="text-gray-600 mb-4">
-            This comprehensive test will check all MFA API endpoints to identify where the issue is occurring.
+            This comprehensive test will check all MFA API endpoints to identify where any issues are occurring.
           </p>
           
           <button

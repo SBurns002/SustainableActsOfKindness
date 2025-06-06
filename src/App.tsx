@@ -51,10 +51,13 @@ function App() {
                 <Resources />
               </div>
             } />
+            {/* MFA Test route - protected by AdminRoute */}
             <Route path="/mfa-test" element={
-              <div className="h-full overflow-y-auto">
-                <MFAAPITest />
-              </div>
+              <AdminRoute>
+                <div className="h-full overflow-y-auto">
+                  <MFAAPITest />
+                </div>
+              </AdminRoute>
             } />
             <Route path="/admin" element={
               <AdminRoute>
