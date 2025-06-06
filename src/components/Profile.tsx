@@ -277,7 +277,14 @@ const Profile: React.FC = () => {
     }
 
     setMfaLoading(true);
+    
     try {
+      console.log('Attempting MFA verification with:', {
+        factorId: enrollmentId,
+        challengeId: challengeId,
+        codeLength: verificationCode.length
+      });
+
       const { data, error } = await supabase.auth.mfa.verify({
         factorId: enrollmentId,
         challengeId: challengeId,
@@ -286,9 +293,26 @@ const Profile: React.FC = () => {
 
       if (error) {
         console.error('MFA verification error:', error);
-        toast.error('Invalid verification code. Please try again.');
+        
+        // Provide more specific error messages
+        if (error.message?.includes('invalid_code') || error.message?.includes('Invalid')) {
+          toast.error('Invalid verification code. Please check your authenticator app and try again.');
+        } else if (error.message?.includes('expired')) {
+          toast.error('Verification code has expired. Please try setting up MFA again.');
+          // Reset the setup process
+          setShowMfaSetup(false);
+          setQrCode(null);
+          setTotpSecret(null);
+          setVerificationCode('');
+          setEnrollmentId(null);
+          setChallengeId(null);
+        } else {
+          toast.error(`Verification failed: ${error.message}`);
+        }
         return;
       }
+
+      console.log('MFA verification successful:', data);
 
       // Generate backup codes (simulated for demo)
       const codes = Array.from({ length: 10 }, () => 
@@ -298,15 +322,21 @@ const Profile: React.FC = () => {
       setShowBackupCodes(true);
       setShowMfaSetup(false);
       
+      // Clear form data
+      setQrCode(null);
+      setTotpSecret(null);
+      setVerificationCode('');
+      setEnrollmentId(null);
+      setChallengeId(null);
+      
       toast.success('MFA successfully enabled!');
       await fetchMfaFactors();
       
     } catch (error) {
       console.error('Error verifying MFA:', error);
-      toast.error('Failed to verify MFA setup');
+      toast.error('Failed to verify MFA setup. Please try again.');
     } finally {
       setMfaLoading(false);
-      setVerificationCode('');
     }
   };
 
@@ -355,6 +385,17 @@ const Profile: React.FC = () => {
     if (value.length <= 6) {
       setVerificationCode(value);
     }
+  };
+
+  // Reset MFA setup modal
+  const resetMfaSetup = () => {
+    setShowMfaSetup(false);
+    setQrCode(null);
+    setTotpSecret(null);
+    setVerificationCode('');
+    setEnrollmentId(null);
+    setChallengeId(null);
+    setMfaLoading(false);
   };
 
   useEffect(() => {
@@ -1001,14 +1042,7 @@ const Profile: React.FC = () => {
 
               <div className="flex space-x-3">
                 <button
-                  onClick={() => {
-                    setShowMfaSetup(false);
-                    setQrCode(null);
-                    setTotpSecret(null);
-                    setVerificationCode('');
-                    setEnrollmentId(null);
-                    setChallengeId(null);
-                  }}
+                  onClick={resetMfaSetup}
                   className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 >
                   Cancel
