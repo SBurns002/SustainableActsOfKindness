@@ -14,16 +14,26 @@ const EventDetails: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   const fetchEventDetails = async (forceRefresh = false) => {
     try {
       setDataLoading(true);
       
-      // Get participant count with a small delay to ensure database consistency
       if (forceRefresh) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+
+      // Get current user first
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        console.error('Error getting user:', userError);
       }
       
+      setCurrentUser(user);
+      setIsAuthenticated(!!user);
+      
+      // Get ALL participants for this event
       const { data: participantsData, error: participantsError } = await supabase
         .from('event_participants')
         .select('id, user_id')
@@ -31,43 +41,26 @@ const EventDetails: React.FC = () => {
 
       if (participantsError) {
         console.error('Error fetching participants:', participantsError);
+        setParticipantCount(0);
       } else {
-        console.log('Current participants:', participantsData);
+        console.log('All participants for event:', participantsData);
         setParticipantCount(participantsData?.length || 0);
       }
 
-      // Check if user is authenticated
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError) {
-        console.error('Error getting user:', userError);
-      }
-      
-      setIsAuthenticated(!!user);
-      
-      if (!user) {
-        setIsParticipating(false);
-        return;
-      }
-
-      // Check user participation with explicit query
-      const { data: userParticipation, error: participationError } = await supabase
-        .from('event_participants')
-        .select('id')
-        .eq('event_id', id)
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (participationError) {
-        console.error('Error checking participation:', participationError);
-      } else {
-        console.log('User participation status:', { 
+      // Check if current user is participating (only if logged in)
+      if (user) {
+        const userIsParticipating = participantsData?.some(p => p.user_id === user.id) || false;
+        console.log('User participation check:', { 
           userId: user.id, 
           eventId: id, 
-          isParticipating: !!userParticipation,
-          participationData: userParticipation 
+          isParticipating: userIsParticipating,
+          allParticipants: participantsData?.map(p => p.user_id)
         });
-        setIsParticipating(!!userParticipation);
+        setIsParticipating(userIsParticipating);
+      } else {
+        setIsParticipating(false);
       }
+
     } catch (error) {
       console.error('Error fetching event details:', error);
       toast.error('Failed to load event details');
@@ -91,8 +84,8 @@ const EventDetails: React.FC = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, !!session);
       setIsAuthenticated(!!session);
+      setCurrentUser(session?.user || null);
       if (session) {
-        // Refresh event details when user logs in
         await fetchEventDetails(true);
       } else {
         setIsParticipating(false);
@@ -102,9 +95,35 @@ const EventDetails: React.FC = () => {
     return () => subscription.unsubscribe();
   }, [id]);
 
+  // Set up real-time subscription for event participants
+  useEffect(() => {
+    if (!id) return;
+
+    const channel = supabase
+      .channel(`event_participants_${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'event_participants',
+          filter: `event_id=eq.${id}`
+        },
+        (payload) => {
+          console.log('Real-time update for event participants:', payload);
+          // Refresh event details when participants change
+          fetchEventDetails(true);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id]);
+
   const ensureUserExists = async (authUser: any) => {
     try {
-      // Check if user exists in our users table
       const { data: existingUser } = await supabase
         .from('users')
         .select('id')
@@ -112,7 +131,6 @@ const EventDetails: React.FC = () => {
         .maybeSingle();
 
       if (!existingUser) {
-        // Create user in our users table
         const { error } = await supabase
           .from('users')
           .insert({
@@ -122,7 +140,7 @@ const EventDetails: React.FC = () => {
             updated_at: new Date().toISOString()
           });
 
-        if (error) {
+        if (error && error.code !== '23505') { // Ignore duplicate key errors
           console.error('Error creating user:', error);
           throw error;
         }
@@ -137,7 +155,7 @@ const EventDetails: React.FC = () => {
     try {
       const eventDate = new Date(eventData.properties.date);
       const reminderDate = new Date(eventDate);
-      reminderDate.setDate(reminderDate.getDate() - 1); // Remind 1 day before
+      reminderDate.setDate(reminderDate.getDate() - 1);
 
       const { error } = await supabase
         .from('event_reminders')
@@ -150,9 +168,8 @@ const EventDetails: React.FC = () => {
           is_read: false
         });
 
-      if (error) {
+      if (error && error.code !== '23505') { // Ignore duplicate key errors
         console.error('Error creating reminder:', error);
-        // Don't throw error here as it shouldn't prevent event registration
       }
     } catch (error) {
       console.error('Error creating event reminder:', error);
@@ -161,30 +178,45 @@ const EventDetails: React.FC = () => {
 
   const handleJoinEvent = async () => {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
+    
+    if (!currentUser) {
       navigate('/auth', { state: { returnTo: `/event/${id}` } });
+      setLoading(false);
       return;
     }
 
     try {
-      // Ensure user exists in our users table
-      await ensureUserExists(user);
+      await ensureUserExists(currentUser);
+
+      // Check if already participating
+      const { data: existingParticipation } = await supabase
+        .from('event_participants')
+        .select('id')
+        .eq('user_id', currentUser.id)
+        .eq('event_id', id)
+        .maybeSingle();
+
+      if (existingParticipation) {
+        toast.error('You are already registered for this event');
+        setLoading(false);
+        return;
+      }
 
       const { error } = await supabase
         .from('event_participants')
         .insert({
-          user_id: user.id,
+          user_id: currentUser.id,
           event_id: id,
           notification_preferences: { email: true, push: false }
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error joining event:', error);
+        throw error;
+      }
 
-      // Create reminder for the event
       if (event) {
-        await createEventReminder(user.id, event);
+        await createEventReminder(currentUser.id, event);
       }
 
       // Update local state immediately
@@ -203,22 +235,20 @@ const EventDetails: React.FC = () => {
   const handleLeaveEvent = async () => {
     setLoading(true);
     
+    if (!currentUser) {
+      toast.error('You must be logged in to leave an event');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      console.log('Attempting to leave event:', { userId: currentUser.id, eventId: id });
 
-      if (!user) {
-        toast.error('You must be logged in to leave an event');
-        setLoading(false);
-        return;
-      }
-
-      console.log('Attempting to leave event:', { userId: user.id, eventId: id });
-
-      // First, check if user is actually participating
+      // Check if user is actually participating
       const { data: currentParticipation } = await supabase
         .from('event_participants')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', currentUser.id)
         .eq('event_id', id)
         .maybeSingle();
 
@@ -232,7 +262,7 @@ const EventDetails: React.FC = () => {
       const { error: participationError } = await supabase
         .from('event_participants')
         .delete()
-        .eq('user_id', user.id)
+        .eq('user_id', currentUser.id)
         .eq('event_id', id);
 
       if (participationError) {
@@ -244,12 +274,11 @@ const EventDetails: React.FC = () => {
       const { error: reminderError } = await supabase
         .from('event_reminders')
         .delete()
-        .eq('user_id', user.id)
+        .eq('user_id', currentUser.id)
         .eq('event_id', id);
 
       if (reminderError) {
         console.error('Error removing reminder:', reminderError);
-        // Don't throw here as participation was already removed
       }
 
       // Update local state immediately
@@ -258,6 +287,11 @@ const EventDetails: React.FC = () => {
 
       console.log('Successfully left event, updated local state');
       toast.success('Successfully left the event. Your reminder has been removed.');
+      
+      // Trigger a broadcast to other components
+      window.dispatchEvent(new CustomEvent('eventParticipationChanged', { 
+        detail: { eventId: id, userId: currentUser.id, action: 'left' } 
+      }));
       
     } catch (error: any) {
       console.error('Error leaving event:', error);

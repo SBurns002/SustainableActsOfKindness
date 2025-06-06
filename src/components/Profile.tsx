@@ -30,6 +30,7 @@ const Profile: React.FC = () => {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [participations, setParticipations] = useState<EventParticipation[]>([]);
   const [reminders, setReminders] = useState<EventReminder[]>([]);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   const fetchUserData = async (forceRefresh = false) => {
     try {
@@ -40,14 +41,14 @@ const Profile: React.FC = () => {
         return;
       }
 
+      setCurrentUser(user);
       setUserEmail(user.email);
 
-      // Add a small delay if forcing refresh to ensure database consistency
       if (forceRefresh) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
 
-      // Fetch participations
+      // Fetch participations with explicit user filter
       const { data: participationsData, error: participationsError } = await supabase
         .from('event_participants')
         .select('*')
@@ -56,12 +57,13 @@ const Profile: React.FC = () => {
 
       if (participationsError) {
         console.error('Error fetching participations:', participationsError);
+        setParticipations([]);
       } else {
-        console.log('Fetched participations:', participationsData);
+        console.log('Fetched participations for user:', user.id, participationsData);
         setParticipations(participationsData || []);
       }
 
-      // Fetch reminders
+      // Fetch reminders with explicit user filter
       const { data: remindersData, error: remindersError } = await supabase
         .from('event_reminders')
         .select('*')
@@ -70,8 +72,9 @@ const Profile: React.FC = () => {
 
       if (remindersError) {
         console.error('Error fetching reminders:', remindersError);
+        setReminders([]);
       } else {
-        console.log('Fetched reminders:', remindersData);
+        console.log('Fetched reminders for user:', user.id, remindersData);
         setReminders(remindersData || []);
       }
 
@@ -91,12 +94,76 @@ const Profile: React.FC = () => {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
+        setCurrentUser(session.user);
         await fetchUserData(true);
+      } else {
+        setCurrentUser(null);
+        setParticipations([]);
+        setReminders([]);
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Listen for custom events from other components
+  useEffect(() => {
+    const handleParticipationChange = (event: any) => {
+      console.log('Received participation change event:', event.detail);
+      if (currentUser && event.detail.userId === currentUser.id) {
+        fetchUserData(true);
+      }
+    };
+
+    window.addEventListener('eventParticipationChanged', handleParticipationChange);
+    return () => {
+      window.removeEventListener('eventParticipationChanged', handleParticipationChange);
+    };
+  }, [currentUser]);
+
+  // Set up real-time subscription for user's participations and reminders
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const participationsChannel = supabase
+      .channel(`user_participations_${currentUser.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'event_participants',
+          filter: `user_id=eq.${currentUser.id}`
+        },
+        (payload) => {
+          console.log('Real-time update for user participations:', payload);
+          fetchUserData(true);
+        }
+      )
+      .subscribe();
+
+    const remindersChannel = supabase
+      .channel(`user_reminders_${currentUser.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'event_reminders',
+          filter: `user_id=eq.${currentUser.id}`
+        },
+        (payload) => {
+          console.log('Real-time update for user reminders:', payload);
+          fetchUserData(true);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(participationsChannel);
+      supabase.removeChannel(remindersChannel);
+    };
+  }, [currentUser]);
 
   const updateNotificationPreferences = async (participationId: string, preferences: any) => {
     try {
@@ -141,19 +208,18 @@ const Profile: React.FC = () => {
 
   const handleLeaveEvent = async (eventId: string, eventName: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      if (!currentUser) {
         toast.error('You must be logged in to leave an event');
         return;
       }
 
-      console.log('Attempting to leave event from profile:', { userId: user.id, eventId });
+      console.log('Attempting to leave event from profile:', { userId: currentUser.id, eventId });
 
-      // First, check if user is actually participating
+      // Check if user is actually participating
       const { data: currentParticipation } = await supabase
         .from('event_participants')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', currentUser.id)
         .eq('event_id', eventId)
         .maybeSingle();
 
@@ -166,7 +232,7 @@ const Profile: React.FC = () => {
       const { error: participationError } = await supabase
         .from('event_participants')
         .delete()
-        .eq('user_id', user.id)
+        .eq('user_id', currentUser.id)
         .eq('event_id', eventId);
 
       if (participationError) {
@@ -178,12 +244,11 @@ const Profile: React.FC = () => {
       const { error: reminderError } = await supabase
         .from('event_reminders')
         .delete()
-        .eq('user_id', user.id)
+        .eq('user_id', currentUser.id)
         .eq('event_id', eventId);
 
       if (reminderError) {
         console.error('Error removing reminder:', reminderError);
-        // Don't throw here as participation was already removed
       }
 
       // Update local state immediately
@@ -192,6 +257,11 @@ const Profile: React.FC = () => {
 
       console.log('Successfully left event from profile, updated local state');
       toast.success(`Successfully left ${eventName}`);
+
+      // Trigger a broadcast to other components
+      window.dispatchEvent(new CustomEvent('eventParticipationChanged', { 
+        detail: { eventId, userId: currentUser.id, action: 'left' } 
+      }));
 
     } catch (error: any) {
       console.error('Error leaving event:', error);
