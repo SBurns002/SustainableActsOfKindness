@@ -58,6 +58,32 @@ const EventDetails: React.FC = () => {
     fetchEventDetails();
   }, [id]);
 
+  const createEventReminder = async (userId: string, eventData: any) => {
+    try {
+      const eventDate = new Date(eventData.properties.date);
+      const reminderDate = new Date(eventDate);
+      reminderDate.setDate(reminderDate.getDate() - 1); // Remind 1 day before
+
+      const { error } = await supabase
+        .from('event_reminders')
+        .insert({
+          user_id: userId,
+          event_id: id,
+          event_name: eventData.properties.name,
+          event_date: eventDate.toISOString(),
+          reminder_date: reminderDate.toISOString(),
+          is_read: false
+        });
+
+      if (error) {
+        console.error('Error creating reminder:', error);
+        // Don't throw error here as it shouldn't prevent event registration
+      }
+    } catch (error) {
+      console.error('Error creating event reminder:', error);
+    }
+  };
+
   const handleJoinEvent = async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
@@ -78,9 +104,14 @@ const EventDetails: React.FC = () => {
 
       if (error) throw error;
 
+      // Create reminder for the event
+      if (event) {
+        await createEventReminder(user.id, event);
+      }
+
       setIsParticipating(true);
       setParticipantCount(prev => prev + 1);
-      toast.success('Successfully joined the event!');
+      toast.success('Successfully joined the event! A reminder has been set for you.');
     } catch (error) {
       toast.error('Failed to join the event. Please try again.');
     } finally {

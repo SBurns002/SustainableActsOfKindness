@@ -1,17 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, LogIn, UserCircle, LogOut, User } from 'lucide-react';
+import { MapPin, LogIn, UserCircle, LogOut, User, Bell } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
 const Header: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [hasUpcomingEvents, setHasUpcomingEvents] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setIsAuthenticated(!!session);
       setUserEmail(session?.user?.email || null);
+      
+      if (session?.user) {
+        checkUpcomingEvents(session.user.id);
+      } else {
+        setHasUpcomingEvents(false);
+      }
     });
 
     // Get initial auth state
@@ -19,11 +26,35 @@ const Header: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
       setIsAuthenticated(!!user);
       setUserEmail(user?.email || null);
+      
+      if (user) {
+        checkUpcomingEvents(user.id);
+      }
     };
     checkAuth();
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const checkUpcomingEvents = async (userId: string) => {
+    try {
+      const now = new Date();
+      const threeDaysFromNow = new Date();
+      threeDaysFromNow.setDate(now.getDate() + 3);
+
+      const { data: upcomingReminders } = await supabase
+        .from('event_reminders')
+        .select('id')
+        .eq('user_id', userId)
+        .gte('event_date', now.toISOString())
+        .lte('event_date', threeDaysFromNow.toISOString())
+        .eq('is_read', false);
+
+      setHasUpcomingEvents((upcomingReminders?.length || 0) > 0);
+    } catch (error) {
+      console.error('Error checking upcoming events:', error);
+    }
+  };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -35,7 +66,7 @@ const Header: React.FC = () => {
       <div className="container mx-auto flex justify-between items-center">
         <Link to="/" className="flex items-center space-x-2">
           <MapPin className="h-6 w-6" />
-          <h1 className="text-xl font-bold">Sustainable Acts of Kindness</h1>
+          <h1 className="text-xl font-bold text-center">Sustainable Acts of Kindness</h1>
         </Link>
         
         <div className="flex items-center space-x-6">
@@ -51,7 +82,14 @@ const Header: React.FC = () => {
           {isAuthenticated ? (
             <div className="relative group">
               <div className="flex items-center text-emerald-200 cursor-pointer">
-                <UserCircle className="h-6 w-6" />
+                <div className="relative">
+                  <UserCircle className="h-6 w-6" />
+                  {hasUpcomingEvents && (
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center">
+                      <Bell className="w-2 h-2 text-white" />
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                 <div className="px-4 py-2 text-sm text-gray-700 border-b border-gray-100">
@@ -63,6 +101,9 @@ const Header: React.FC = () => {
                 >
                   <User className="h-4 w-4 mr-2" />
                   Profile
+                  {hasUpcomingEvents && (
+                    <div className="ml-auto w-2 h-2 bg-red-500 rounded-full"></div>
+                  )}
                 </Link>
                 <button
                   onClick={handleSignOut}
