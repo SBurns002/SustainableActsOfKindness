@@ -325,7 +325,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
 
       let verifyResponse: any;
       try {
-        verifyResponse = await withTimeout(verifyPromise, 25000, 'MFA verification'); // Increased timeout
+        verifyResponse = await withTimeout(verifyPromise, 45000, 'MFA verification'); // Increased timeout from 25000 to 45000
         console.log('MFA Verify Response received:', {
           data: verifyResponse.data,
           error: verifyResponse.error,
