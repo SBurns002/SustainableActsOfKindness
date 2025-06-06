@@ -118,40 +118,53 @@ const Profile: React.FC = () => {
   const handleLeaveEvent = async (eventId: string, eventName: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        toast.error('You must be logged in to leave an event');
+        return;
+      }
+
+      console.log('Attempting to leave event from profile:', { userId: user.id, eventId });
 
       // Remove from event participants
-      const { error: participationError } = await supabase
+      const { error: participationError, data: deletedParticipation } = await supabase
         .from('event_participants')
         .delete()
         .eq('user_id', user.id)
-        .eq('event_id', eventId);
+        .eq('event_id', eventId)
+        .select();
 
       if (participationError) {
         console.error('Error removing participation:', participationError);
-        throw participationError;
+        throw new Error(`Failed to remove participation: ${participationError.message}`);
       }
 
+      console.log('Deleted participation from profile:', deletedParticipation);
+
       // Remove associated reminders
-      const { error: reminderError } = await supabase
+      const { error: reminderError, data: deletedReminder } = await supabase
         .from('event_reminders')
         .delete()
         .eq('user_id', user.id)
-        .eq('event_id', eventId);
+        .eq('event_id', eventId)
+        .select();
 
       if (reminderError) {
         console.error('Error removing reminder:', reminderError);
-        throw reminderError;
+        // Don't throw here as participation was already removed
       }
+
+      console.log('Deleted reminder from profile:', deletedReminder);
 
       toast.success(`Successfully left ${eventName}`);
       
       // Force a page refresh to ensure all state is updated
-      window.location.reload();
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error leaving event:', error);
-      toast.error('Failed to leave event');
+      toast.error(`Failed to leave event: ${error.message}`);
     }
   };
 

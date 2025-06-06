@@ -129,6 +129,7 @@ const EventDetails: React.FC = () => {
       await fetchEventDetails();
       toast.success('Successfully joined the event! A reminder has been set for you.');
     } catch (error) {
+      console.error('Error joining event:', error);
       toast.error('Failed to join the event. Please try again.');
     } finally {
       setLoading(false);
@@ -137,34 +138,57 @@ const EventDetails: React.FC = () => {
 
   const handleLeaveEvent = async () => {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) return;
-
+    
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        toast.error('You must be logged in to leave an event');
+        return;
+      }
+
+      console.log('Attempting to leave event:', { userId: user.id, eventId: id });
+
       // First, remove from event participants
-      const { error: participationError } = await supabase
+      const { error: participationError, data: deletedParticipation } = await supabase
         .from('event_participants')
         .delete()
         .eq('user_id', user.id)
-        .eq('event_id', id);
+        .eq('event_id', id)
+        .select();
 
       if (participationError) {
         console.error('Error removing participation:', participationError);
-        throw participationError;
+        throw new Error(`Failed to remove participation: ${participationError.message}`);
       }
 
+      console.log('Deleted participation:', deletedParticipation);
+
       // Then remove reminder for the event
-      await removeEventReminder(user.id);
+      const { error: reminderError, data: deletedReminder } = await supabase
+        .from('event_reminders')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('event_id', id)
+        .select();
+
+      if (reminderError) {
+        console.error('Error removing reminder:', reminderError);
+        // Don't throw here as participation was already removed
+      }
+
+      console.log('Deleted reminder:', deletedReminder);
 
       toast.success('Successfully left the event. Your reminder has been removed.');
       
       // Force a page refresh to ensure all state is updated
-      window.location.reload();
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error leaving event:', error);
-      toast.error('Failed to leave the event. Please try again.');
+      toast.error(`Failed to leave the event: ${error.message}`);
     } finally {
       setLoading(false);
     }
