@@ -63,6 +63,7 @@ const AdminDashboard: React.FC = () => {
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [showEventForm, setShowEventForm] = useState(false);
   const [showUserManagement, setShowUserManagement] = useState(false);
   const [showMFATest, setShowMFATest] = useState(false);
@@ -112,6 +113,8 @@ const AdminDashboard: React.FC = () => {
         navigate('/auth');
         return;
       }
+
+      setCurrentUser(user);
 
       const { data: roles, error } = await supabase
         .from('user_roles')
@@ -224,6 +227,11 @@ const AdminDashboard: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!currentUser) {
+      toast.error('User not authenticated');
+      return;
+    }
+    
     try {
       const eventData = {
         ...formData,
@@ -238,12 +246,11 @@ const AdminDashboard: React.FC = () => {
         await eventDataManager.updateEvent(editingEvent.id, eventData);
         toast.success('Event updated successfully');
       } else {
-        const { data: { user } } = await supabase.auth.getUser();
         const { error } = await supabase
           .from('events')
           .insert({
             ...eventData,
-            created_by: user?.id
+            created_by: currentUser.id
           });
 
         if (error) throw error;
