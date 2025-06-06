@@ -226,29 +226,33 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
         }
       }
 
-      // Check if we got a successful response
-      if (verifyResponse.data) {
+      // Check if we got a successful response - handle both data and no-data success cases
+      if (verifyResponse.data || (!verifyResponse.error && verifyResponse.data !== false)) {
         console.log('Verification successful! Response data:', verifyResponse.data);
         setDebugInfo('Verification successful! Confirming MFA status...');
 
         // Step 4: Verify the factor is now active
-        const { data: updatedFactors, error: factorsError } = await supabase.auth.mfa.listFactors();
-        
-        if (!factorsError && updatedFactors?.totp) {
-          const verifiedFactor = updatedFactors.totp.find(f => f.id === factorId && f.status === 'verified');
-          if (verifiedFactor) {
-            console.log('MFA successfully enabled and verified:', verifiedFactor);
-            setStep('success');
-            setDebugInfo('Two-factor authentication is now active!');
-            toast.success('Two-factor authentication enabled successfully!');
-            
-            setTimeout(() => {
-              onComplete();
-            }, 2000);
-            return;
-          } else {
-            console.warn('Factor not found in verified state, but verification succeeded');
+        try {
+          const { data: updatedFactors, error: factorsError } = await supabase.auth.mfa.listFactors();
+          
+          if (!factorsError && updatedFactors?.totp) {
+            const verifiedFactor = updatedFactors.totp.find(f => f.id === factorId && f.status === 'verified');
+            if (verifiedFactor) {
+              console.log('MFA successfully enabled and verified:', verifiedFactor);
+              setStep('success');
+              setDebugInfo('Two-factor authentication is now active!');
+              toast.success('Two-factor authentication enabled successfully!');
+              
+              setTimeout(() => {
+                onComplete();
+              }, 2000);
+              return;
+            } else {
+              console.warn('Factor not found in verified state, but verification succeeded');
+            }
           }
+        } catch (factorCheckError) {
+          console.warn('Could not verify factor status, but verification succeeded:', factorCheckError);
         }
 
         // Fallback success handling if factor check fails
