@@ -198,20 +198,35 @@ const Profile: React.FC = () => {
   };
 
   const startMfaEnrollment = async () => {
-    // Check if there's already an existing factor with the same friendly name
-    const existingFactor = mfaFactors.find(factor => factor.friendly_name === 'Authenticator App');
-    
-    if (existingFactor) {
-      if (existingFactor.status === 'unverified') {
-        toast.error('You already have an unverified MFA setup. Please complete the existing setup or contact support to reset it.');
-      } else {
-        toast.error('MFA is already enabled for your account.');
-      }
-      return;
-    }
-
     setMfaLoading(true);
+    
     try {
+      // Fetch the most current MFA factors to avoid stale data
+      const { data: currentFactors, error: fetchError } = await supabase.auth.mfa.listFactors();
+      
+      if (fetchError) {
+        console.error('Error fetching current MFA factors:', fetchError);
+        toast.error('Failed to check current MFA status');
+        return;
+      }
+
+      // Update local state with fresh data
+      const freshFactors = currentFactors?.totp || [];
+      setMfaFactors(freshFactors);
+
+      // Check if there's already an existing factor with the same friendly name
+      const existingFactor = freshFactors.find(factor => factor.friendly_name === 'Authenticator App');
+      
+      if (existingFactor) {
+        if (existingFactor.status === 'unverified') {
+          toast.error('You already have an unverified MFA setup. Please complete the existing setup or contact support to reset it.');
+        } else {
+          toast.error('MFA is already enabled for your account.');
+        }
+        return;
+      }
+
+      // Proceed with enrollment since no conflicting factor exists
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
         friendlyName: 'Authenticator App'
