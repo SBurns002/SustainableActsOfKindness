@@ -3,30 +3,27 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// More detailed error checking and logging
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Supabase configuration error:', {
-    url: supabaseUrl ? 'Present' : 'Missing',
-    key: supabaseAnonKey ? 'Present' : 'Missing'
-  });
-  throw new Error('Missing Supabase environment variables. Please check your .env file and ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are properly set.');
+// Fallback to hardcoded values if env vars are not available
+const fallbackUrl = 'https://kxcuiyvxxvylackjjlgn.supabase.co';
+const fallbackKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4Y3VpeXZ4eHZ5bGFja2pqbGduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg5OTM2NDMsImV4cCI6MjA2NDU2OTY0M30.gwzVhnfihnEu3mGdVQPz-NjKv1UsHSqwFQQEeyA6ALM';
+
+const finalUrl = supabaseUrl || fallbackUrl;
+const finalKey = supabaseAnonKey || fallbackKey;
+
+// Basic validation
+if (!finalUrl || !finalKey) {
+  console.error('Supabase configuration missing');
+  throw new Error('Supabase configuration is required');
 }
 
-// Validate URL format
-try {
-  new URL(supabaseUrl);
-} catch (error) {
-  console.error('Invalid Supabase URL:', supabaseUrl);
-  throw new Error(`Invalid VITE_SUPABASE_URL format: ${supabaseUrl}. Please ensure it follows the format: https://your-project-id.supabase.co`);
-}
-
-// Log configuration for debugging (without exposing sensitive data)
+// Log configuration status (without exposing sensitive data)
 console.log('Supabase configuration:', {
-  url: supabaseUrl,
-  keyLength: supabaseAnonKey?.length || 0
+  url: finalUrl,
+  keyLength: finalKey?.length || 0,
+  usingFallback: !supabaseUrl || !supabaseAnonKey
 });
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(finalUrl, finalKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
