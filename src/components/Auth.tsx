@@ -2,12 +2,15 @@ import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import MFAChallenge from './MFAChallenge';
 
 const Auth: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [showMfaChallenge, setShowMfaChallenge] = useState(false);
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -40,11 +43,44 @@ const Auth: React.FC = () => {
         const returnTo = location.state?.returnTo || '/';
         navigate(returnTo);
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        // Sign in flow
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
+        
         if (error) throw error;
+
+        // Check if user has MFA enabled
+        if (data.user) {
+          try {
+            const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
+            
+            if (factorsError) {
+              console.error('Error checking MFA factors:', factorsError);
+              // Continue with normal login if we can't check MFA
+              toast.success('Successfully logged in!');
+              const returnTo = location.state?.returnTo || '/';
+              navigate(returnTo);
+              return;
+            }
+
+            const verifiedTotpFactor = factors?.totp?.find(factor => factor.status === 'verified');
+            
+            if (verifiedTotpFactor) {
+              console.log('User has MFA enabled, showing challenge');
+              setMfaFactorId(verifiedTotpFactor.id);
+              setShowMfaChallenge(true);
+              setLoading(false);
+              return;
+            }
+          } catch (mfaError) {
+            console.error('Error checking MFA status:', mfaError);
+            // Continue with normal login if MFA check fails
+          }
+        }
+
+        // No MFA required, complete login
         toast.success('Successfully logged in!');
         const returnTo = location.state?.returnTo || '/';
         navigate(returnTo);
@@ -63,9 +99,50 @@ const Auth: React.FC = () => {
         toast.error(error.message || 'An unexpected error occurred. Please try again.');
       }
     } finally {
-      setLoading(false);
+      if (!showMfaChallenge) {
+        setLoading(false);
+      }
     }
   };
+
+  const handleMfaSuccess = () => {
+    setShowMfaChallenge(false);
+    setMfaFactorId(null);
+    toast.success('Successfully logged in with MFA!');
+    const returnTo = location.state?.returnTo || '/';
+    navigate(returnTo);
+  };
+
+  const handleMfaCancel = async () => {
+    // Sign out the user since they didn't complete MFA
+    await supabase.auth.signOut();
+    setShowMfaChallenge(false);
+    setMfaFactorId(null);
+    setLoading(false);
+    toast.info('Login cancelled. MFA verification is required.');
+  };
+
+  if (showMfaChallenge) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md">
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Two-Factor Authentication Required
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Please complete MFA verification to continue
+          </p>
+        </div>
+        <div className="mt-8">
+          <MFAChallenge
+            onSuccess={handleMfaSuccess}
+            onCancel={handleMfaCancel}
+            factorId={mfaFactorId}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
