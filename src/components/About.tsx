@@ -52,7 +52,7 @@ const About: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 overflow-y-auto">
+    <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
       <div className="bg-gradient-to-br from-emerald-600 via-emerald-700 to-emerald-800 text-white">
         <div className="max-w-7xl mx-auto px-6 py-20">
@@ -71,7 +71,7 @@ const About: React.FC = () => {
         </div>
       </div>
 
-      {/* Scrollable Content Container */}
+      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-16">
         {/* Mission Section */}
         <div className="text-center mb-16">
@@ -171,7 +171,7 @@ const About: React.FC = () => {
         </div>
 
         {/* Values Section */}
-        <div className="bg-gray-900 text-white py-20 rounded-2xl">
+        <div className="bg-gray-900 text-white py-20 rounded-2xl mb-8">
           <div className="max-w-6xl mx-auto px-6">
             <div className="text-center mb-16">
               <h3 className="text-3xl font-bold mb-6">Our Values</h3>

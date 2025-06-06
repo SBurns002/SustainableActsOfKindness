@@ -14,14 +14,34 @@ function App() {
     <Router>
       <div className="flex flex-col h-screen bg-gray-50">
         <Header />
-        <main className="flex-1 overflow-hidden">
+        <main className="flex-1 relative">
           <Routes>
             <Route path="/" element={<MapView />} />
-            <Route path="/event/:id" element={<EventDetails />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/auth-status" element={<AuthStatus />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/about" element={<About />} />
+            <Route path="/event/:id" element={
+              <div className="h-full overflow-y-auto">
+                <EventDetails />
+              </div>
+            } />
+            <Route path="/auth" element={
+              <div className="h-full overflow-y-auto">
+                <Auth />
+              </div>
+            } />
+            <Route path="/auth-status" element={
+              <div className="h-full overflow-y-auto">
+                <AuthStatus />
+              </div>
+            } />
+            <Route path="/profile" element={
+              <div className="h-full overflow-y-auto">
+                <Profile />
+              </div>
+            } />
+            <Route path="/about" element={
+              <div className="h-full overflow-y-auto">
+                <About />
+              </div>
+            } />
           </Routes>
         </main>
         <Toaster position="top-right" />
