@@ -29,3 +29,27 @@ export const filterCleanupDataByDateRange = (
     features: filteredFeatures
   };
 };
+
+/**
+ * Filter cleanup data by event types
+ */
+export const filterCleanupDataByEventType = (
+  data: any,
+  eventTypes: string[]
+) => {
+  if (!eventTypes || eventTypes.length === 0) {
+    return data;
+  }
+
+  // Filter features that match the selected event types
+  const filteredFeatures = data.features.filter((feature: any) => {
+    const eventType = feature.properties.eventType || 'cleanup'; // Default to cleanup if no eventType
+    return eventTypes.includes(eventType);
+  });
+
+  // Return a new GeoJSON object with filtered features
+  return {
+    ...data,
+    features: filteredFeatures
+  };
+};

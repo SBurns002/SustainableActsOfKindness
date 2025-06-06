@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import DateRangeFilter from './DateRangeFilter';
 import MapLegend from './MapLegend';
 import { cleanupData } from '../data/cleanupData';
-import { filterCleanupDataByDateRange } from '../utils/filterUtils';
+import { filterCleanupDataByDateRange, filterCleanupDataByEventType } from '../utils/filterUtils';
 import 'leaflet/dist/leaflet.css';
 
 interface DateRange {
@@ -18,16 +18,24 @@ const MapView: React.FC = () => {
     startDate: null,
     endDate: null
   });
+  const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>([]);
   const [filteredData, setFilteredData] = useState(cleanupData);
 
   useEffect(() => {
+    let filtered = cleanupData;
+
+    // Apply date range filter
     if (dateRange.startDate && dateRange.endDate) {
-      const filtered = filterCleanupDataByDateRange(cleanupData, dateRange.startDate, dateRange.endDate);
-      setFilteredData(filtered);
-    } else {
-      setFilteredData(cleanupData);
+      filtered = filterCleanupDataByDateRange(filtered, dateRange.startDate, dateRange.endDate);
     }
-  }, [dateRange]);
+
+    // Apply event type filter
+    if (selectedEventTypes.length > 0) {
+      filtered = filterCleanupDataByEventType(filtered, selectedEventTypes);
+    }
+
+    setFilteredData(filtered);
+  }, [dateRange, selectedEventTypes]);
 
   const getFeatureStyle = (feature: any) => {
     const { eventType } = feature.properties;
@@ -112,7 +120,9 @@ const MapView: React.FC = () => {
       <div className="absolute top-4 left-4 right-4 z-[1001] bg-white rounded-lg shadow-lg p-4 max-w-md mx-auto">
         <DateRangeFilter 
           onDateRangeChange={setDateRange}
+          onEventTypeChange={setSelectedEventTypes}
           dateRange={dateRange}
+          selectedEventTypes={selectedEventTypes}
         />
       </div>
       
