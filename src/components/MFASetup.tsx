@@ -138,6 +138,24 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
     }
   };
 
+  const waitForChallengeReady = async (challengeId: string, maxAttempts = 5) => {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      setDebugInfo(`Waiting for challenge to be ready (attempt ${attempt}/${maxAttempts})...`);
+      
+      // Wait progressively longer between attempts
+      const waitTime = attempt * 500; // 500ms, 1s, 1.5s, 2s, 2.5s
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+      
+      // You could add a check here if Supabase provides a way to verify challenge status
+      // For now, we'll just wait and assume it's ready after the delay
+      if (attempt === maxAttempts) {
+        setDebugInfo('Challenge should be ready for verification...');
+        return true;
+      }
+    }
+    return false;
+  };
+
   const verifyAndEnable = async () => {
     if (!factorId || !verificationCode) {
       setError('Missing verification information');
@@ -182,36 +200,70 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
       }
 
       console.log('Challenge created:', challengeData.id);
+      
+      // Wait for challenge to be ready with progressive backoff
+      await waitForChallengeReady(challengeData.id);
+
       setDebugInfo('Verifying your code...');
 
-      // Wait for challenge to be ready
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Verify the code with retry logic
+      let verifySuccess = false;
+      let lastError = null;
+      
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const { data: verifyData, error: verifyError } = await supabase.auth.mfa.verify({
+            factorId,
+            challengeId: challengeData.id,
+            code: verificationCode.trim()
+          });
 
-      // Verify the code
-      const { data: verifyData, error: verifyError } = await supabase.auth.mfa.verify({
-        factorId,
-        challengeId: challengeData.id,
-        code: verificationCode.trim()
-      });
-
-      if (verifyError) {
-        console.error('Verification failed:', verifyError);
-        
-        if (verifyError.message?.includes('invalid_code')) {
-          setRetryCount(prev => prev + 1);
-          throw new Error('Invalid code. Please check your authenticator app and try again. Make sure you\'re using the current 6-digit code.');
-        } else if (verifyError.message?.includes('expired')) {
-          throw new Error('Code expired. Please try again with a fresh code from your authenticator app.');
-        } else if (verifyError.message?.includes('challenge_expired')) {
-          throw new Error('Verification session expired. Please try again.');
-        } else if (verifyError.message?.includes('too_many_attempts')) {
-          throw new Error('Too many failed attempts. Please wait 5 minutes before trying again.');
-        } else {
-          throw new Error(`Verification failed: ${verifyError.message}`);
+          if (verifyError) {
+            lastError = verifyError;
+            console.error(`Verification attempt ${attempt} failed:`, verifyError);
+            
+            if (verifyError.message?.includes('invalid_code')) {
+              // Don't retry on invalid code - user needs to enter a new one
+              throw verifyError;
+            } else if (verifyError.message?.includes('expired')) {
+              throw verifyError;
+            } else if (verifyError.message?.includes('too_many_attempts')) {
+              throw verifyError;
+            }
+            
+            // For other errors, wait and retry
+            if (attempt < 3) {
+              setDebugInfo(`Verification attempt ${attempt} failed, retrying...`);
+              await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+              continue;
+            }
+          } else {
+            // Success!
+            console.log('Verification successful:', verifyData);
+            verifySuccess = true;
+            break;
+          }
+        } catch (retryError) {
+          lastError = retryError;
+          if (attempt === 3) break;
         }
       }
 
-      console.log('Verification successful:', verifyData);
+      if (!verifySuccess && lastError) {
+        if (lastError.message?.includes('invalid_code')) {
+          setRetryCount(prev => prev + 1);
+          throw new Error('Invalid code. Please check your authenticator app and try again. Make sure you\'re using the current 6-digit code.');
+        } else if (lastError.message?.includes('expired')) {
+          throw new Error('Code expired. Please try again with a fresh code from your authenticator app.');
+        } else if (lastError.message?.includes('challenge_expired')) {
+          throw new Error('Verification session expired. Please try again.');
+        } else if (lastError.message?.includes('too_many_attempts')) {
+          throw new Error('Too many failed attempts. Please wait 5 minutes before trying again.');
+        } else {
+          throw new Error(`Verification failed: ${lastError.message}`);
+        }
+      }
+
       setDebugInfo('Verification successful! Confirming MFA status...');
 
       // Verify the factor is now active
@@ -489,6 +541,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
                     {debugInfo.includes('Creating') ? 'Creating...' : 
+                     debugInfo.includes('Waiting') ? 'Preparing...' :
                      debugInfo.includes('Verifying') ? 'Verifying...' : 
                      debugInfo.includes('Confirming') ? 'Confirming...' : 'Processing...'}
                   </>
