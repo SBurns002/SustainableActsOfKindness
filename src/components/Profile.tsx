@@ -70,20 +70,24 @@ const Profile: React.FC = () => {
 
         // Only create reminder for future events
         if (eventDate > new Date()) {
+          // Use upsert to handle potential duplicates gracefully
           const { error } = await supabase
             .from('event_reminders')
-            .insert({
+            .upsert({
               user_id: currentUser.id,
               event_id: participation.event_id,
               event_name: eventDetails.properties.name,
               event_date: eventDate.toISOString(),
               reminder_date: reminderDate.toISOString(),
               is_read: false
+            }, {
+              onConflict: 'user_id,event_id',
+              ignoreDuplicates: false
             });
 
-          if (error && error.code !== '23505') { // Ignore duplicate key errors
+          if (error) {
             console.error('Error creating reminder:', error);
-          } else if (!error) {
+          } else {
             remindersCreated++;
           }
         }
@@ -92,6 +96,8 @@ const Profile: React.FC = () => {
       if (remindersCreated > 0) {
         toast.success(`Created ${remindersCreated} event reminder${remindersCreated > 1 ? 's' : ''}!`);
         await fetchUserData(true);
+      } else if (participations.length > 0) {
+        toast.info('All your events already have reminders set up!');
       }
     } catch (error) {
       console.error('Error creating reminders:', error);
@@ -333,7 +339,7 @@ const Profile: React.FC = () => {
         throw new Error(`Failed to remove participation: ${participationError.message}`);
       }
 
-      // Remove associated reminders
+      // Remove associated reminders (now only one will exist due to unique constraint)
       const { error: reminderError } = await supabase
         .from('event_reminders')
         .delete()

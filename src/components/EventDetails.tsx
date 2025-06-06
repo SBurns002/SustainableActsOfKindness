@@ -143,19 +143,25 @@ const EventDetails: React.FC = () => {
       const reminderDate = new Date(eventDate);
       reminderDate.setDate(reminderDate.getDate() - 1);
 
+      // Use upsert to handle duplicates gracefully
       const { error } = await supabase
         .from('event_reminders')
-        .insert({
+        .upsert({
           user_id: userId,
           event_id: id,
           event_name: eventData.properties.name,
           event_date: eventDate.toISOString(),
           reminder_date: reminderDate.toISOString(),
           is_read: false
+        }, {
+          onConflict: 'user_id,event_id',
+          ignoreDuplicates: false
         });
 
-      if (error && error.code !== '23505') { // Ignore duplicate key errors
-        console.error('Error creating reminder:', error);
+      if (error) {
+        console.error('Error creating/updating reminder:', error);
+      } else {
+        console.log('Successfully created/updated reminder for event');
       }
     } catch (error) {
       console.error('Error creating event reminder:', error);
@@ -265,7 +271,7 @@ const EventDetails: React.FC = () => {
         throw new Error(`Failed to remove participation: ${participationError.message}`);
       }
 
-      // Remove reminder for the event
+      // Remove reminder for the event (this will now only remove one due to unique constraint)
       const { error: reminderError } = await supabase
         .from('event_reminders')
         .delete()
