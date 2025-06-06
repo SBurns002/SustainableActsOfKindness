@@ -95,9 +95,9 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
         code: verificationCode
       });
 
-      // Shorter timeout for better user experience
+      // Increased timeout from 15 seconds to 60 seconds for better reliability
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Verification timed out after 15 seconds')), 15000);
+        setTimeout(() => reject(new Error('Verification timed out after 60 seconds')), 60000);
       });
 
       const { data: verifyData, error: verifyError } = await Promise.race([
@@ -166,8 +166,9 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
         factorId
       });
 
+      // Increased timeout from 10 seconds to 60 seconds
       const challengeTimeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Challenge creation timed out after 10 seconds')), 10000);
+        setTimeout(() => reject(new Error('Challenge creation timed out after 60 seconds')), 60000);
       });
 
       const { data: challengeData, error: challengeError } = await Promise.race([
@@ -194,8 +195,9 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
         code: verificationCode
       });
 
+      // Increased timeout from 15 seconds to 60 seconds
       const verifyTimeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Verification timed out after 15 seconds')), 15000);
+        setTimeout(() => reject(new Error('Verification timed out after 60 seconds')), 60000);
       });
 
       const { data: verifyData, error: verifyError } = await Promise.race([
