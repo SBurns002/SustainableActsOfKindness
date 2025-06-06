@@ -31,7 +31,7 @@ const Profile: React.FC = () => {
   const [participations, setParticipations] = useState<EventParticipation[]>([]);
   const [reminders, setReminders] = useState<EventReminder[]>([]);
 
-  const fetchUserData = async () => {
+  const fetchUserData = async (forceRefresh = false) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -41,6 +41,11 @@ const Profile: React.FC = () => {
       }
 
       setUserEmail(user.email);
+
+      // Add a small delay if forcing refresh to ensure database consistency
+      if (forceRefresh) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
 
       // Fetch participations
       const { data: participationsData, error: participationsError } = await supabase
@@ -52,6 +57,7 @@ const Profile: React.FC = () => {
       if (participationsError) {
         console.error('Error fetching participations:', participationsError);
       } else {
+        console.log('Fetched participations:', participationsData);
         setParticipations(participationsData || []);
       }
 
@@ -65,6 +71,7 @@ const Profile: React.FC = () => {
       if (remindersError) {
         console.error('Error fetching reminders:', remindersError);
       } else {
+        console.log('Fetched reminders:', remindersData);
         setReminders(remindersData || []);
       }
 
@@ -79,6 +86,17 @@ const Profile: React.FC = () => {
   useEffect(() => {
     fetchUserData();
   }, [navigate]);
+
+  // Listen for auth state changes and refresh data
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        await fetchUserData(true);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const updateNotificationPreferences = async (participationId: string, preferences: any) => {
     try {
@@ -172,6 +190,7 @@ const Profile: React.FC = () => {
       setParticipations(prev => prev.filter(p => p.event_id !== eventId));
       setReminders(prev => prev.filter(r => r.event_id !== eventId));
 
+      console.log('Successfully left event from profile, updated local state');
       toast.success(`Successfully left ${eventName}`);
 
     } catch (error: any) {

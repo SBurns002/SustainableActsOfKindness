@@ -13,19 +13,35 @@ const EventDetails: React.FC = () => {
   const [isParticipating, setIsParticipating] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true);
 
-  const fetchEventDetails = async () => {
+  const fetchEventDetails = async (forceRefresh = false) => {
     try {
-      // Get participant count
-      const { data: participantsData } = await supabase
+      setDataLoading(true);
+      
+      // Get participant count with a small delay to ensure database consistency
+      if (forceRefresh) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      const { data: participantsData, error: participantsError } = await supabase
         .from('event_participants')
-        .select('id')
+        .select('id, user_id')
         .eq('event_id', id);
 
-      setParticipantCount(participantsData?.length || 0);
+      if (participantsError) {
+        console.error('Error fetching participants:', participantsError);
+      } else {
+        console.log('Current participants:', participantsData);
+        setParticipantCount(participantsData?.length || 0);
+      }
 
       // Check if user is authenticated
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        console.error('Error getting user:', userError);
+      }
+      
       setIsAuthenticated(!!user);
       
       if (!user) {
@@ -33,18 +49,30 @@ const EventDetails: React.FC = () => {
         return;
       }
 
-      // Only check user participation if user is logged in
-      const { data: userParticipation } = await supabase
+      // Check user participation with explicit query
+      const { data: userParticipation, error: participationError } = await supabase
         .from('event_participants')
         .select('id')
         .eq('event_id', id)
         .eq('user_id', user.id)
         .maybeSingle();
 
-      setIsParticipating(!!userParticipation);
+      if (participationError) {
+        console.error('Error checking participation:', participationError);
+      } else {
+        console.log('User participation status:', { 
+          userId: user.id, 
+          eventId: id, 
+          isParticipating: !!userParticipation,
+          participationData: userParticipation 
+        });
+        setIsParticipating(!!userParticipation);
+      }
     } catch (error) {
       console.error('Error fetching event details:', error);
       toast.error('Failed to load event details');
+    } finally {
+      setDataLoading(false);
     }
   };
 
@@ -58,31 +86,21 @@ const EventDetails: React.FC = () => {
     fetchEventDetails();
   }, [id]);
 
-  const createEventReminder = async (userId: string, eventData: any) => {
-    try {
-      const eventDate = new Date(eventData.properties.date);
-      const reminderDate = new Date(eventDate);
-      reminderDate.setDate(reminderDate.getDate() - 1); // Remind 1 day before
-
-      const { error } = await supabase
-        .from('event_reminders')
-        .insert({
-          user_id: userId,
-          event_id: id,
-          event_name: eventData.properties.name,
-          event_date: eventDate.toISOString(),
-          reminder_date: reminderDate.toISOString(),
-          is_read: false
-        });
-
-      if (error) {
-        console.error('Error creating reminder:', error);
-        // Don't throw error here as it shouldn't prevent event registration
+  // Listen for auth state changes
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, !!session);
+      setIsAuthenticated(!!session);
+      if (session) {
+        // Refresh event details when user logs in
+        await fetchEventDetails(true);
+      } else {
+        setIsParticipating(false);
       }
-    } catch (error) {
-      console.error('Error creating event reminder:', error);
-    }
-  };
+    });
+
+    return () => subscription.unsubscribe();
+  }, [id]);
 
   const ensureUserExists = async (authUser: any) => {
     try {
@@ -115,6 +133,32 @@ const EventDetails: React.FC = () => {
     }
   };
 
+  const createEventReminder = async (userId: string, eventData: any) => {
+    try {
+      const eventDate = new Date(eventData.properties.date);
+      const reminderDate = new Date(eventDate);
+      reminderDate.setDate(reminderDate.getDate() - 1); // Remind 1 day before
+
+      const { error } = await supabase
+        .from('event_reminders')
+        .insert({
+          user_id: userId,
+          event_id: id,
+          event_name: eventData.properties.name,
+          event_date: eventDate.toISOString(),
+          reminder_date: reminderDate.toISOString(),
+          is_read: false
+        });
+
+      if (error) {
+        console.error('Error creating reminder:', error);
+        // Don't throw error here as it shouldn't prevent event registration
+      }
+    } catch (error) {
+      console.error('Error creating event reminder:', error);
+    }
+  };
+
   const handleJoinEvent = async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
@@ -143,8 +187,10 @@ const EventDetails: React.FC = () => {
         await createEventReminder(user.id, event);
       }
 
-      // Refresh the event details to get updated state
-      await fetchEventDetails();
+      // Update local state immediately
+      setIsParticipating(true);
+      setParticipantCount(prev => prev + 1);
+
       toast.success('Successfully joined the event! A reminder has been set for you.');
     } catch (error: any) {
       console.error('Error joining event:', error);
@@ -210,6 +256,7 @@ const EventDetails: React.FC = () => {
       setIsParticipating(false);
       setParticipantCount(prev => Math.max(0, prev - 1));
 
+      console.log('Successfully left event, updated local state');
       toast.success('Successfully left the event. Your reminder has been removed.');
       
     } catch (error: any) {
@@ -223,6 +270,12 @@ const EventDetails: React.FC = () => {
   if (!event) return (
     <div className="flex items-center justify-center min-h-screen">
       <div className="text-gray-600">Event not found</div>
+    </div>
+  );
+
+  if (dataLoading) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-gray-600">Loading event details...</div>
     </div>
   );
 
