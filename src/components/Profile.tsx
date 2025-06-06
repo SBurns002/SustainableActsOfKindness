@@ -45,7 +45,7 @@ const Profile: React.FC = () => {
       setUserEmail(user.email);
 
       if (forceRefresh) {
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 300));
       }
 
       // Fetch participations with explicit user filter
@@ -100,11 +100,12 @@ const Profile: React.FC = () => {
         setCurrentUser(null);
         setParticipations([]);
         setReminders([]);
+        navigate('/auth');
       }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [navigate]);
 
   // Listen for custom events from other components
   useEffect(() => {
@@ -224,6 +225,10 @@ const Profile: React.FC = () => {
         .maybeSingle();
 
       if (!currentParticipation) {
+        console.log('User is not participating in this event');
+        // Remove from local state anyway to keep UI consistent
+        setParticipations(prev => prev.filter(p => p.event_id !== eventId));
+        setReminders(prev => prev.filter(r => r.event_id !== eventId));
         toast.error('You are not currently registered for this event');
         return;
       }

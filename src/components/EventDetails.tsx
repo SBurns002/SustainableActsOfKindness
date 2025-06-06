@@ -21,7 +21,7 @@ const EventDetails: React.FC = () => {
       setDataLoading(true);
       
       if (forceRefresh) {
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 300));
       }
 
       // Get current user first
@@ -122,34 +122,20 @@ const EventDetails: React.FC = () => {
     };
   }, [id]);
 
-  const ensureUserExists = async (authUser: any) => {
-    try {
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('id')
-        .eq('id', authUser.id)
-        .maybeSingle();
-
-      if (!existingUser) {
-        const { error } = await supabase
-          .from('users')
-          .insert({
-            id: authUser.id,
-            email: authUser.email,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          });
-
-        if (error && error.code !== '23505') { // Ignore duplicate key errors
-          console.error('Error creating user:', error);
-          throw error;
-        }
+  // Listen for custom events from other components
+  useEffect(() => {
+    const handleParticipationChange = (event: any) => {
+      console.log('Received participation change event:', event.detail);
+      if (event.detail.eventId === id) {
+        fetchEventDetails(true);
       }
-    } catch (error) {
-      console.error('Error ensuring user exists:', error);
-      throw error;
-    }
-  };
+    };
+
+    window.addEventListener('eventParticipationChanged', handleParticipationChange);
+    return () => {
+      window.removeEventListener('eventParticipationChanged', handleParticipationChange);
+    };
+  }, [id]);
 
   const createEventReminder = async (userId: string, eventData: any) => {
     try {
@@ -186,8 +172,6 @@ const EventDetails: React.FC = () => {
     }
 
     try {
-      await ensureUserExists(currentUser);
-
       // Check if already participating
       const { data: existingParticipation } = await supabase
         .from('event_participants')
@@ -201,6 +185,8 @@ const EventDetails: React.FC = () => {
         setLoading(false);
         return;
       }
+
+      console.log('Attempting to join event:', { userId: currentUser.id, eventId: id });
 
       const { error } = await supabase
         .from('event_participants')
@@ -223,7 +209,14 @@ const EventDetails: React.FC = () => {
       setIsParticipating(true);
       setParticipantCount(prev => prev + 1);
 
+      console.log('Successfully joined event, updated local state');
       toast.success('Successfully joined the event! A reminder has been set for you.');
+      
+      // Trigger a broadcast to other components
+      window.dispatchEvent(new CustomEvent('eventParticipationChanged', { 
+        detail: { eventId: id, userId: currentUser.id, action: 'joined' } 
+      }));
+      
     } catch (error: any) {
       console.error('Error joining event:', error);
       toast.error(`Failed to join the event: ${error.message}`);
@@ -253,6 +246,8 @@ const EventDetails: React.FC = () => {
         .maybeSingle();
 
       if (!currentParticipation) {
+        console.log('User is not participating in this event');
+        setIsParticipating(false);
         toast.error('You are not currently registered for this event');
         setLoading(false);
         return;
