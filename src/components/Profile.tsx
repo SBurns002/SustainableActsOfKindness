@@ -49,8 +49,11 @@ const Profile: React.FC = () => {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (participationsError) throw participationsError;
-      setParticipations(participationsData || []);
+      if (participationsError) {
+        console.error('Error fetching participations:', participationsError);
+      } else {
+        setParticipations(participationsData || []);
+      }
 
       // Fetch reminders
       const { data: remindersData, error: remindersError } = await supabase
@@ -59,8 +62,11 @@ const Profile: React.FC = () => {
         .eq('user_id', user.id)
         .order('event_date', { ascending: true });
 
-      if (remindersError) throw remindersError;
-      setReminders(remindersData || []);
+      if (remindersError) {
+        console.error('Error fetching reminders:', remindersError);
+      } else {
+        setReminders(remindersData || []);
+      }
 
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -125,42 +131,48 @@ const Profile: React.FC = () => {
 
       console.log('Attempting to leave event from profile:', { userId: user.id, eventId });
 
+      // First, check if user is actually participating
+      const { data: currentParticipation } = await supabase
+        .from('event_participants')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('event_id', eventId)
+        .maybeSingle();
+
+      if (!currentParticipation) {
+        toast.error('You are not currently registered for this event');
+        return;
+      }
+
       // Remove from event participants
-      const { error: participationError, data: deletedParticipation } = await supabase
+      const { error: participationError } = await supabase
         .from('event_participants')
         .delete()
         .eq('user_id', user.id)
-        .eq('event_id', eventId)
-        .select();
+        .eq('event_id', eventId);
 
       if (participationError) {
         console.error('Error removing participation:', participationError);
         throw new Error(`Failed to remove participation: ${participationError.message}`);
       }
 
-      console.log('Deleted participation from profile:', deletedParticipation);
-
       // Remove associated reminders
-      const { error: reminderError, data: deletedReminder } = await supabase
+      const { error: reminderError } = await supabase
         .from('event_reminders')
         .delete()
         .eq('user_id', user.id)
-        .eq('event_id', eventId)
-        .select();
+        .eq('event_id', eventId);
 
       if (reminderError) {
         console.error('Error removing reminder:', reminderError);
         // Don't throw here as participation was already removed
       }
 
-      console.log('Deleted reminder from profile:', deletedReminder);
+      // Update local state immediately
+      setParticipations(prev => prev.filter(p => p.event_id !== eventId));
+      setReminders(prev => prev.filter(r => r.event_id !== eventId));
 
       toast.success(`Successfully left ${eventName}`);
-      
-      // Force a page refresh to ensure all state is updated
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
 
     } catch (error: any) {
       console.error('Error leaving event:', error);

@@ -84,19 +84,34 @@ const EventDetails: React.FC = () => {
     }
   };
 
-  const removeEventReminder = async (userId: string) => {
+  const ensureUserExists = async (authUser: any) => {
     try {
-      const { error } = await supabase
-        .from('event_reminders')
-        .delete()
-        .eq('user_id', userId)
-        .eq('event_id', id);
+      // Check if user exists in our users table
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', authUser.id)
+        .maybeSingle();
 
-      if (error) {
-        console.error('Error removing reminder:', error);
+      if (!existingUser) {
+        // Create user in our users table
+        const { error } = await supabase
+          .from('users')
+          .insert({
+            id: authUser.id,
+            email: authUser.email,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+
+        if (error) {
+          console.error('Error creating user:', error);
+          throw error;
+        }
       }
     } catch (error) {
-      console.error('Error removing event reminder:', error);
+      console.error('Error ensuring user exists:', error);
+      throw error;
     }
   };
 
@@ -110,6 +125,9 @@ const EventDetails: React.FC = () => {
     }
 
     try {
+      // Ensure user exists in our users table
+      await ensureUserExists(user);
+
       const { error } = await supabase
         .from('event_participants')
         .insert({
@@ -128,9 +146,9 @@ const EventDetails: React.FC = () => {
       // Refresh the event details to get updated state
       await fetchEventDetails();
       toast.success('Successfully joined the event! A reminder has been set for you.');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error joining event:', error);
-      toast.error('Failed to join the event. Please try again.');
+      toast.error(`Failed to join the event: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -144,47 +162,55 @@ const EventDetails: React.FC = () => {
 
       if (!user) {
         toast.error('You must be logged in to leave an event');
+        setLoading(false);
         return;
       }
 
       console.log('Attempting to leave event:', { userId: user.id, eventId: id });
 
-      // First, remove from event participants
-      const { error: participationError, data: deletedParticipation } = await supabase
+      // First, check if user is actually participating
+      const { data: currentParticipation } = await supabase
+        .from('event_participants')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('event_id', id)
+        .maybeSingle();
+
+      if (!currentParticipation) {
+        toast.error('You are not currently registered for this event');
+        setLoading(false);
+        return;
+      }
+
+      // Remove from event participants
+      const { error: participationError } = await supabase
         .from('event_participants')
         .delete()
         .eq('user_id', user.id)
-        .eq('event_id', id)
-        .select();
+        .eq('event_id', id);
 
       if (participationError) {
         console.error('Error removing participation:', participationError);
         throw new Error(`Failed to remove participation: ${participationError.message}`);
       }
 
-      console.log('Deleted participation:', deletedParticipation);
-
-      // Then remove reminder for the event
-      const { error: reminderError, data: deletedReminder } = await supabase
+      // Remove reminder for the event
+      const { error: reminderError } = await supabase
         .from('event_reminders')
         .delete()
         .eq('user_id', user.id)
-        .eq('event_id', id)
-        .select();
+        .eq('event_id', id);
 
       if (reminderError) {
         console.error('Error removing reminder:', reminderError);
         // Don't throw here as participation was already removed
       }
 
-      console.log('Deleted reminder:', deletedReminder);
+      // Update local state immediately
+      setIsParticipating(false);
+      setParticipantCount(prev => Math.max(0, prev - 1));
 
       toast.success('Successfully left the event. Your reminder has been removed.');
-      
-      // Force a page refresh to ensure all state is updated
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
       
     } catch (error: any) {
       console.error('Error leaving event:', error);
