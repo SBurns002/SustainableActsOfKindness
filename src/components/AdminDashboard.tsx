@@ -227,7 +227,7 @@ const AdminDashboard: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!currentUser) {
+    if (!currentUser?.id) {
       toast.error('User not authenticated');
       return;
     }
