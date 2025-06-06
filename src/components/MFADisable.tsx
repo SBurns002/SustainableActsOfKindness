@@ -15,6 +15,35 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
   const [verificationCode, setVerificationCode] = useState('');
   const [step, setStep] = useState<'verify' | 'success'>('verify');
   const [debugInfo, setDebugInfo] = useState<string>('');
+  const [challengeId, setChallengeId] = useState<string | null>(null);
+
+  const createChallenge = async () => {
+    try {
+      setDebugInfo('Creating MFA challenge...');
+      console.log('Creating challenge for factor:', totpFactorId);
+
+      const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
+        factorId: totpFactorId
+      });
+
+      if (challengeError) {
+        console.error('Challenge creation failed:', challengeError);
+        throw new Error(`Challenge failed: ${challengeError.message}`);
+      }
+
+      if (!challengeData?.id) {
+        throw new Error('No challenge ID received');
+      }
+
+      console.log('Challenge created successfully:', challengeData.id);
+      setChallengeId(challengeData.id);
+      setDebugInfo('Challenge created. Please enter your verification code.');
+      return challengeData.id;
+    } catch (err: any) {
+      console.error('Challenge creation error:', err);
+      throw err;
+    }
+  };
 
   const disableMFA = async () => {
     if (!verificationCode || verificationCode.length !== 6) {
@@ -29,47 +58,45 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
 
       console.log('Starting MFA disable for factor:', totpFactorId);
 
-      // Step 1: Create challenge
-      setDebugInfo('Creating MFA challenge...');
-      const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
-        factorId: totpFactorId
-      });
-
-      if (challengeError) {
-        console.error('Challenge creation failed:', challengeError);
-        throw new Error(`Challenge failed: ${challengeError.message}`);
+      // Step 1: Create challenge if we don't have one
+      let currentChallengeId = challengeId;
+      if (!currentChallengeId) {
+        currentChallengeId = await createChallenge();
       }
 
-      if (!challengeData?.id) {
-        throw new Error('No challenge ID received');
-      }
-
-      console.log('Challenge created:', challengeData.id);
-
-      // Step 2: Verify the code
+      // Step 2: Verify the code with proper error handling
       setDebugInfo('Verifying code...');
+      console.log('Verifying code with challenge:', currentChallengeId);
+
       const { data: verifyData, error: verifyError } = await supabase.auth.mfa.verify({
         factorId: totpFactorId,
-        challengeId: challengeData.id,
+        challengeId: currentChallengeId,
         code: verificationCode
       });
 
       if (verifyError) {
         console.error('Verification failed:', verifyError);
         
+        // Reset challenge on verification failure
+        setChallengeId(null);
+        
         if (verifyError.message?.includes('invalid_code')) {
           throw new Error('Invalid verification code. Please check your authenticator app and try again.');
         } else if (verifyError.message?.includes('expired')) {
           throw new Error('Verification code has expired. Please try again with a new code.');
+        } else if (verifyError.message?.includes('challenge_expired')) {
+          throw new Error('Challenge expired. Please try again.');
         } else {
           throw new Error(`Verification failed: ${verifyError.message}`);
         }
       }
 
-      console.log('Code verified successfully');
+      console.log('Code verified successfully:', verifyData);
 
       // Step 3: Unenroll the factor
       setDebugInfo('Disabling MFA factor...');
+      console.log('Attempting to unenroll factor:', totpFactorId);
+
       const { error: unenrollError } = await supabase.auth.mfa.unenroll({
         factorId: totpFactorId
       });
@@ -94,10 +121,21 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
       setError(err.message || 'An unexpected error occurred. Please try again.');
       setVerificationCode('');
       setDebugInfo('');
+      setChallengeId(null); // Reset challenge on error
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Create challenge when component mounts or when retrying
+  React.useEffect(() => {
+    if (step === 'verify' && !challengeId && !isLoading) {
+      createChallenge().catch((err) => {
+        console.error('Initial challenge creation failed:', err);
+        setError(`Failed to initialize: ${err.message}`);
+      });
+    }
+  }, [step, challengeId, isLoading, totpFactorId]);
 
   // Simple direct disable without challenge (fallback method)
   const directDisable = async () => {
@@ -105,6 +143,8 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
       setIsLoading(true);
       setError(null);
       setDebugInfo('Attempting direct disable...');
+
+      console.log('Attempting direct unenroll for factor:', totpFactorId);
 
       const { error } = await supabase.auth.mfa.unenroll({
         factorId: totpFactorId
@@ -115,6 +155,7 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
         throw new Error(`Direct disable failed: ${error.message}`);
       }
 
+      console.log('Direct disable successful');
       setStep('success');
       toast.success('Two-factor authentication has been successfully disabled.');
       
@@ -128,6 +169,14 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const retryProcess = () => {
+    setError(null);
+    setDebugInfo('');
+    setVerificationCode('');
+    setChallengeId(null);
+    setIsLoading(false);
   };
 
   return (
@@ -177,7 +226,11 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
 
             {debugInfo && (
               <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-blue-800 text-sm">{debugInfo}</p>
+                <p className="text-blue-800 text-sm font-medium">Status:</p>
+                <p className="text-blue-700 text-sm">{debugInfo}</p>
+                {challengeId && (
+                  <p className="text-blue-600 text-xs mt-1">Challenge ID: {challengeId.substring(0, 8)}...</p>
+                )}
               </div>
             )}
 
@@ -192,15 +245,12 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
                 </div>
                 <div className="mt-3 flex gap-2">
                   <button
-                    onClick={() => {
-                      setError(null);
-                      setDebugInfo('');
-                      setVerificationCode('');
-                    }}
+                    onClick={retryProcess}
                     className="text-red-600 hover:text-red-700 text-sm font-medium"
                     disabled={isLoading}
                   >
-                    Try Again
+                    <RefreshCw className="w-3 h-3 inline mr-1" />
+                    Retry
                   </button>
                   <button
                     onClick={directDisable}
@@ -228,6 +278,11 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
                   autoFocus
                   disabled={isLoading}
                 />
+                {challengeId && (
+                  <p className="text-xs text-gray-500 mt-2 text-center">
+                    Challenge ready - enter your current TOTP code
+                  </p>
+                )}
               </div>
 
               <div className="flex gap-3">
@@ -240,13 +295,14 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
                 </button>
                 <button
                   onClick={disableMFA}
-                  disabled={isLoading || verificationCode.length !== 6}
+                  disabled={isLoading || verificationCode.length !== 6 || !challengeId}
                   className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {isLoading ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      Disabling...
+                      {debugInfo.includes('Verifying') ? 'Verifying...' : 
+                       debugInfo.includes('Disabling') ? 'Disabling...' : 'Processing...'}
                     </>
                   ) : (
                     'Disable MFA'
