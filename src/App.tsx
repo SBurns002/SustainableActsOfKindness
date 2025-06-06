@@ -7,6 +7,7 @@ import EventDetails from './components/EventDetails';
 import Auth from './components/Auth';
 import AuthStatus from './components/AuthStatus';
 import Profile from './components/Profile';
+import About from './components/About';
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth-status" element={<AuthStatus />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/about" element={<About />} />
           </Routes>
         </main>
         <Toaster position="top-right" />
