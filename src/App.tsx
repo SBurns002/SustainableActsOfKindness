@@ -8,6 +8,7 @@ import Auth from './components/Auth';
 import AuthStatus from './components/AuthStatus';
 import Profile from './components/Profile';
 import About from './components/About';
+import Resources from './components/Resources';
 
 function App() {
   return (
@@ -40,6 +41,11 @@ function App() {
             <Route path="/about" element={
               <div className="h-full overflow-y-auto">
                 <About />
+              </div>
+            } />
+            <Route path="/resources" element={
+              <div className="h-full overflow-y-auto">
+                <Resources />
               </div>
             } />
           </Routes>
