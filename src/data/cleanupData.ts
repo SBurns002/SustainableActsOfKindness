@@ -10,7 +10,7 @@ export const cleanupData = {
         name: "Charles River Cleanup Initiative",
         type: "Water Pollution",
         priority: "high",
-        date: "2025-04-01",
+        date: "2025-07-05",
         description: "Urban river cleanup focusing on plastic pollution and industrial runoff in the Charles River.",
         eventType: "cleanup"
       },
@@ -31,7 +31,7 @@ export const cleanupData = {
         name: "Boston Harbor Islands Restoration",
         type: "Mixed Pollution",
         priority: "medium",
-        date: "2025-05-15",
+        date: "2025-07-15",
         description: "Marine ecosystem restoration and debris removal around Boston Harbor Islands.",
         eventType: "cleanup"
       },
@@ -52,7 +52,7 @@ export const cleanupData = {
         name: "Emerald Necklace Tree Initiative",
         type: "Urban Reforestation",
         priority: "medium",
-        date: "2025-04-20",
+        date: "2025-07-20",
         description: "Community tree planting event along Boston's historic park system.",
         eventType: "treePlanting",
         trees: 250
@@ -74,7 +74,7 @@ export const cleanupData = {
         name: "Cambridge Urban Forest Expansion",
         type: "Street Tree Planting",
         priority: "low",
-        date: "2025-05-01",
+        date: "2025-08-01",
         description: "Street tree planting program in Cambridge neighborhoods.",
         eventType: "treePlanting",
         trees: 175
@@ -96,7 +96,7 @@ export const cleanupData = {
         name: "Great Lakes Plastic Pollution",
         type: "Water Pollution",
         priority: "high",
-        date: "2025-09-15",
+        date: "2025-08-15",
         description: "Plastic waste accumulation in the Great Lakes region affecting wildlife and water quality.",
         eventType: "cleanup"
       },
@@ -117,7 +117,7 @@ export const cleanupData = {
         name: "Gulf Coast Oil Spill Residue",
         type: "Oil Pollution",
         priority: "high",
-        date: "2025-06-22",
+        date: "2025-07-22",
         description: "Remaining contamination from historical oil spills requiring remediation.",
         eventType: "cleanup"
       },
@@ -138,7 +138,7 @@ export const cleanupData = {
         name: "New Jersey Industrial Zone",
         type: "Chemical Contamination",
         priority: "medium",
-        date: "2025-11-03",
+        date: "2025-08-03",
         description: "Former industrial sites with soil contamination requiring remediation.",
         eventType: "cleanup"
       },
@@ -159,7 +159,7 @@ export const cleanupData = {
         name: "California Wildfire Aftermath",
         type: "Ash and Debris",
         priority: "medium",
-        date: "2025-01-15",
+        date: "2025-07-15",
         description: "Post-wildfire cleanup of ash and debris that could contaminate water sources.",
         eventType: "cleanup"
       },
@@ -201,7 +201,7 @@ export const cleanupData = {
         name: "Oregon Forest Restoration",
         type: "Deforestation",
         priority: "low",
-        date: "2025-02-20",
+        date: "2025-07-20",
         description: "Areas requiring reforestation and habitat restoration.",
         eventType: "cleanup"
       },
@@ -222,7 +222,7 @@ export const cleanupData = {
         name: "Ohio River Valley Waste Site",
         type: "Industrial Waste",
         priority: "medium",
-        date: "2025-04-18",
+        date: "2025-07-18",
         description: "Former industrial waste disposal site requiring containment and cleanup.",
         eventType: "cleanup"
       },
@@ -243,7 +243,7 @@ export const cleanupData = {
         name: "Florida Everglades Restoration",
         type: "Habitat Degradation",
         priority: "medium",
-        date: "2025-12-01",
+        date: "2025-08-01",
         description: "Restoration of natural water flow and removal of invasive species.",
         eventType: "cleanup"
       },
@@ -264,7 +264,7 @@ export const cleanupData = {
         name: "Texas Agricultural Runoff",
         type: "Chemical Fertilizer",
         priority: "low",
-        date: "2025-03-10",
+        date: "2025-07-10",
         description: "Areas affected by agricultural chemical runoff requiring mitigation.",
         eventType: "cleanup"
       },
@@ -285,7 +285,7 @@ export const cleanupData = {
         name: "Montana Mining Reclamation",
         type: "Soil Contamination",
         priority: "low",
-        date: "2025-07-22",
+        date: "2025-08-22",
         description: "Former mining sites requiring soil remediation and native plant restoration.",
         eventType: "cleanup"
       },
@@ -306,7 +306,7 @@ export const cleanupData = {
         name: "New York Urban Waterway",
         type: "Mixed Pollution",
         priority: "high",
-        date: "2025-01-05",
+        date: "2025-07-05",
         description: "Urban waterway requiring cleanup of multiple contaminants from historical industrial use.",
         eventType: "cleanup"
       },
@@ -327,7 +327,7 @@ export const cleanupData = {
         name: "Arizona Desert Solar Panel Waste",
         type: "Electronic Waste",
         priority: "medium",
-        date: "2025-10-12",
+        date: "2025-08-12",
         description: "Improper disposal of solar panel components requiring specialized cleanup.",
         eventType: "cleanup"
       },
@@ -348,7 +348,7 @@ export const cleanupData = {
         name: "Urban Forest Initiative - Seattle",
         type: "Urban Reforestation",
         priority: "medium",
-        date: "2025-04-15",
+        date: "2025-07-15",
         description: "Community tree planting event to increase urban canopy coverage.",
         eventType: "treePlanting",
         trees: 500
@@ -370,7 +370,7 @@ export const cleanupData = {
         name: "Portland Green Streets",
         type: "Street Tree Planting",
         priority: "low",
-        date: "2025-05-01",
+        date: "2025-08-01",
         description: "Street tree planting program to improve air quality and reduce urban heat island effect.",
         eventType: "treePlanting",
         trees: 300
@@ -392,7 +392,7 @@ export const cleanupData = {
         name: "Austin Green Belt Restoration",
         type: "Natural Area Restoration",
         priority: "medium",
-        date: "2025-03-20",
+        date: "2025-07-20",
         description: "Native tree planting event to restore natural habitat.",
         eventType: "treePlanting",
         trees: 1000
@@ -413,7 +413,7 @@ export const cleanupData = {
       properties: {
         name: "Fenway Victory Gardens",
         type: "Community Garden",
-        date: "2025-04-01",
+        date: "2025-07-01",
         description: "Historic community gardens with over 500 plots for local residents.",
         eventType: "garden",
         plots: 500
@@ -434,7 +434,7 @@ export const cleanupData = {
       properties: {
         name: "Cambridge Community Garden",
         type: "Community Garden",
-        date: "2025-05-01",
+        date: "2025-08-01",
         description: "Urban garden promoting sustainable food production and community engagement.",
         eventType: "garden",
         plots: 150
@@ -455,7 +455,7 @@ export const cleanupData = {
       properties: {
         name: "Somerville Growing Center",
         type: "Community Garden",
-        date: "2025-04-15",
+        date: "2025-07-15",
         description: "Educational garden space focusing on sustainable urban agriculture.",
         eventType: "garden",
         plots: 75
