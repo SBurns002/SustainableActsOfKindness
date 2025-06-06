@@ -80,30 +80,38 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
     try {
       setIsLoading(true);
       setError(null);
-      setDebugInfo('Starting verification process...');
+      setDebugInfo('Creating challenge...');
 
       console.log('Starting MFA verification process:', {
         factorId: factorId.substring(0, 8) + '...',
         codeLength: verificationCode.length
       });
 
-      // Use challengeAndVerify which is more reliable for initial setup
-      setDebugInfo('Verifying code with challengeAndVerify...');
-      
-      const verificationPromise = supabase.auth.mfa.challengeAndVerify({
+      // Step 1: Create a challenge
+      const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
+        factorId
+      });
+
+      if (challengeError) {
+        console.error('Challenge creation failed:', challengeError);
+        setError(`Failed to create challenge: ${challengeError.message}`);
+        return;
+      }
+
+      if (!challengeData?.id) {
+        setError('No challenge ID received from server');
+        return;
+      }
+
+      console.log('Challenge created successfully:', challengeData.id);
+      setDebugInfo('Challenge created, verifying code...');
+
+      // Step 2: Verify the code with the challenge
+      const { data: verifyData, error: verifyError } = await supabase.auth.mfa.verify({
         factorId,
+        challengeId: challengeData.id,
         code: verificationCode
       });
-
-      // Increased timeout to 90 seconds for better reliability
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Verification timed out after 90 seconds')), 90000);
-      });
-
-      const { data: verifyData, error: verifyError } = await Promise.race([
-        verificationPromise,
-        timeoutPromise
-      ]) as any;
 
       if (verifyError) {
         console.error('MFA verification error:', verifyError);
@@ -118,8 +126,6 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
           setFactorId(null);
           setQrCode(null);
           setSecret(null);
-        } else if (verifyError.message?.includes('timed out')) {
-          setError('Verification timed out. Please try again with a fresh code.');
         } else {
           setError(`Verification failed: ${verifyError.message}`);
         }
@@ -132,113 +138,14 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
         setStep('success');
         toast.success('Two-factor authentication has been successfully enabled!');
         
-        // Refresh the page to show updated MFA status
+        // Call onComplete to refresh the parent component
         setTimeout(() => {
-          window.location.reload();
+          onComplete();
         }, 1500);
       }
     } catch (err: any) {
       console.error('Unexpected error during MFA verification:', err);
-      
-      if (err.message?.includes('timed out')) {
-        setError('Verification timed out. Please try again with a fresh code from your authenticator app.');
-      } else {
-        setError('An unexpected error occurred during verification. Please try again.');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Alternative verification method using separate challenge and verify
-  const alternativeVerify = async () => {
-    if (!factorId || !verificationCode) return;
-
-    try {
-      setIsLoading(true);
-      setError(null);
-      setDebugInfo('Using alternative verification method...');
-
-      console.log('Creating challenge for factor:', factorId);
-
-      // Step 1: Create challenge
-      const challengePromise = supabase.auth.mfa.challenge({
-        factorId
-      });
-
-      // Increased timeout to 90 seconds
-      const challengeTimeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Challenge creation timed out after 90 seconds')), 90000);
-      });
-
-      const { data: challengeData, error: challengeError } = await Promise.race([
-        challengePromise,
-        challengeTimeoutPromise
-      ]) as any;
-
-      if (challengeError) {
-        console.error('Challenge creation failed:', challengeError);
-        throw new Error(`Challenge failed: ${challengeError.message}`);
-      }
-
-      if (!challengeData?.id) {
-        throw new Error('No challenge ID received');
-      }
-
-      console.log('Challenge created:', challengeData.id);
-      setDebugInfo('Challenge created, verifying code...');
-
-      // Step 2: Verify with challenge
-      const verifyPromise = supabase.auth.mfa.verify({
-        factorId,
-        challengeId: challengeData.id,
-        code: verificationCode
-      });
-
-      // Increased timeout to 90 seconds
-      const verifyTimeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Verification timed out after 90 seconds')), 90000);
-      });
-
-      const { data: verifyData, error: verifyError } = await Promise.race([
-        verifyPromise,
-        verifyTimeoutPromise
-      ]) as any;
-
-      if (verifyError) {
-        console.error('Alternative verification failed:', verifyError);
-        
-        if (verifyError.message?.includes('invalid_code')) {
-          setError('Invalid verification code. Please check your authenticator app and try again.');
-        } else if (verifyError.message?.includes('expired')) {
-          setError('Verification code has expired. Please try again with a new code.');
-        } else if (verifyError.message?.includes('timed out')) {
-          setError('Alternative verification also timed out. Please check your internet connection.');
-        } else {
-          setError(`Alternative verification failed: ${verifyError.message}`);
-        }
-        return;
-      }
-
-      if (verifyData) {
-        console.log('Alternative verification successful:', verifyData);
-        setDebugInfo('Alternative verification successful!');
-        setStep('success');
-        toast.success('Two-factor authentication has been successfully enabled!');
-        
-        // Refresh the page to show updated MFA status
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
-      }
-    } catch (err: any) {
-      console.error('Alternative verification error:', err);
-      
-      if (err.message?.includes('timed out')) {
-        setError('Alternative verification also timed out. Please check your internet connection and try again.');
-      } else {
-        setError('Alternative verification failed. Please try restarting the setup process.');
-      }
+      setError('An unexpected error occurred during verification. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -312,7 +219,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
                 )}
               </div>
             </div>
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-3">
               <button
                 onClick={retrySetup}
                 className="text-red-600 hover:text-red-700 text-sm font-medium"
@@ -321,15 +228,6 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
                 <RefreshCw className="w-3 h-3 inline mr-1" />
                 Try Again
               </button>
-              {step === 'scan' && factorId && verificationCode.length === 6 && (
-                <button
-                  onClick={alternativeVerify}
-                  className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                  disabled={isLoading}
-                >
-                  Alternative Method
-                </button>
-              )}
             </div>
           </div>
         )}
@@ -428,20 +326,14 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
                 {isLoading ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    {debugInfo.includes('Verifying') ? 'Verifying...' : 
-                     debugInfo.includes('Challenge') ? 'Creating...' : 'Processing...'}
+                    {debugInfo.includes('Creating') ? 'Creating...' : 
+                     debugInfo.includes('verifying') ? 'Verifying...' : 'Processing...'}
                   </>
                 ) : (
                   'Verify & Enable'
                 )}
               </button>
             </div>
-            
-            {verificationCode.length === 6 && !isLoading && (
-              <p className="text-xs text-center text-gray-500">
-                Tip: If verification hangs, try the "Alternative Method" button above
-              </p>
-            )}
           </div>
         )}
       </div>
