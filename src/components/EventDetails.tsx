@@ -14,46 +14,46 @@ const EventDetails: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+  const fetchEventDetails = async () => {
+    try {
+      // Get participant count
+      const { data: participantsData } = await supabase
+        .from('event_participants')
+        .select('id')
+        .eq('event_id', id);
+
+      setParticipantCount(participantsData?.length || 0);
+
+      // Check if user is authenticated
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsAuthenticated(!!user);
+      
+      if (!user) {
+        setIsParticipating(false);
+        return;
+      }
+
+      // Only check user participation if user is logged in
+      const { data: userParticipation } = await supabase
+        .from('event_participants')
+        .select('id')
+        .eq('event_id', id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      setIsParticipating(!!userParticipation);
+    } catch (error) {
+      console.error('Error fetching event details:', error);
+      toast.error('Failed to load event details');
+    }
+  };
+
   useEffect(() => {
     // Find the event in the cleanupData
     const eventData = cleanupData.features.find(
       feature => feature.properties.name === decodeURIComponent(id || '')
     );
     setEvent(eventData);
-
-    const fetchEventDetails = async () => {
-      try {
-        // Get participant count
-        const { data: participantsData } = await supabase
-          .from('event_participants')
-          .select('id')
-          .eq('event_id', id);
-
-        setParticipantCount(participantsData?.length || 0);
-
-        // Check if user is authenticated
-        const { data: { user } } = await supabase.auth.getUser();
-        setIsAuthenticated(!!user);
-        
-        if (!user) {
-          setIsParticipating(false);
-          return;
-        }
-
-        // Only check user participation if user is logged in
-        const { data: userParticipation } = await supabase
-          .from('event_participants')
-          .select('id')
-          .eq('event_id', id)
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        setIsParticipating(!!userParticipation);
-      } catch (error) {
-        console.error('Error fetching event details:', error);
-        toast.error('Failed to load event details');
-      }
-    };
 
     fetchEventDetails();
   }, [id]);
@@ -125,8 +125,8 @@ const EventDetails: React.FC = () => {
         await createEventReminder(user.id, event);
       }
 
-      setIsParticipating(true);
-      setParticipantCount(prev => prev + 1);
+      // Refresh the event details to get updated state
+      await fetchEventDetails();
       toast.success('Successfully joined the event! A reminder has been set for you.');
     } catch (error) {
       toast.error('Failed to join the event. Please try again.');
@@ -153,8 +153,8 @@ const EventDetails: React.FC = () => {
       // Remove reminder for the event
       await removeEventReminder(user.id);
 
-      setIsParticipating(false);
-      setParticipantCount(prev => prev - 1);
+      // Refresh the event details to get updated state
+      await fetchEventDetails();
       toast.success('Successfully left the event. Your reminder has been removed.');
     } catch (error) {
       toast.error('Failed to leave the event. Please try again.');

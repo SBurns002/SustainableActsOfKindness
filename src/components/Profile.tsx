@@ -31,44 +31,44 @@ const Profile: React.FC = () => {
   const [participations, setParticipations] = useState<EventParticipation[]>([]);
   const [reminders, setReminders] = useState<EventReminder[]>([]);
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) {
-          navigate('/auth');
-          return;
-        }
-
-        setUserEmail(user.email);
-
-        // Fetch participations
-        const { data: participationsData, error: participationsError } = await supabase
-          .from('event_participants')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (participationsError) throw participationsError;
-        setParticipations(participationsData);
-
-        // Fetch reminders
-        const { data: remindersData, error: remindersError } = await supabase
-          .from('event_reminders')
-          .select('*')
-          .order('event_date', { ascending: true });
-
-        if (remindersError) throw remindersError;
-        setReminders(remindersData || []);
-
-      } catch (error) {
-        console.error('Error fetching user data:', error);
-        toast.error('Failed to load profile data');
-      } finally {
-        setLoading(false);
+  const fetchUserData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        navigate('/auth');
+        return;
       }
-    };
 
+      setUserEmail(user.email);
+
+      // Fetch participations
+      const { data: participationsData, error: participationsError } = await supabase
+        .from('event_participants')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (participationsError) throw participationsError;
+      setParticipations(participationsData || []);
+
+      // Fetch reminders
+      const { data: remindersData, error: remindersError } = await supabase
+        .from('event_reminders')
+        .select('*')
+        .order('event_date', { ascending: true });
+
+      if (remindersError) throw remindersError;
+      setReminders(remindersData || []);
+
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      toast.error('Failed to load profile data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchUserData();
   }, [navigate]);
 
@@ -136,9 +136,8 @@ const Profile: React.FC = () => {
 
       if (reminderError) throw reminderError;
 
-      // Update local state
-      setParticipations(participations.filter(p => p.event_id !== eventId));
-      setReminders(reminders.filter(r => r.event_id !== eventId));
+      // Refresh all data to ensure consistency
+      await fetchUserData();
 
       toast.success(`Successfully left ${eventName}`);
     } catch (error) {
@@ -348,6 +347,13 @@ const Profile: React.FC = () => {
                             <span className="ml-2 text-sm font-medium text-gray-700">Email</span>
                           </label>
                         </div>
+                        <button
+                          onClick={() => navigate(`/event/${encodeURIComponent(participation.event_id)}`)}
+                          className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center space-x-1"
+                        >
+                          <Eye className="w-4 h-4" />
+                          <span>View</span>
+                        </button>
                         <button
                           onClick={() => handleLeaveEvent(participation.event_id, participation.event_id)}
                           className="text-red-600 hover:text-red-700 text-sm font-medium flex items-center space-x-1"
