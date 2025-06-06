@@ -211,12 +211,17 @@ const Profile: React.FC = () => {
         return;
       }
 
-      // Update local state with fresh data
-      const freshFactors = currentFactors?.totp || [];
-      setMfaFactors(freshFactors);
+      // Combine all factor types to check for friendly name conflicts
+      const allFactors = [
+        ...(currentFactors?.totp || []),
+        ...(currentFactors?.webauthn || [])
+      ];
 
-      // Check if there's already an existing factor with the same friendly name
-      const existingFactor = freshFactors.find(factor => factor.friendly_name === 'Authenticator App');
+      // Update local state with fresh TOTP factors
+      setMfaFactors(currentFactors?.totp || []);
+
+      // Check if there's already an existing factor with the same friendly name across all types
+      const existingFactor = allFactors.find(factor => factor.friendly_name === 'Authenticator App');
       
       if (existingFactor) {
         if (existingFactor.status === 'unverified') {
