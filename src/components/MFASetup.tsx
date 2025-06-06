@@ -80,40 +80,24 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
     try {
       setIsLoading(true);
       setError(null);
-      setDebugInfo('Creating verification challenge...');
+      setDebugInfo('Starting verification process...');
 
       console.log('Starting MFA verification process:', {
         factorId: factorId.substring(0, 8) + '...',
         codeLength: verificationCode.length
       });
 
-      // Create a challenge first
-      const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
-        factorId
-      });
-
-      if (challengeError) {
-        console.error('Challenge creation failed:', challengeError);
-        throw new Error(`Challenge failed: ${challengeError.message}`);
-      }
-
-      if (!challengeData?.id) {
-        throw new Error('No challenge ID received');
-      }
-
-      console.log('Challenge created:', challengeData.id);
-      setDebugInfo('Challenge created, verifying code...');
-
-      // Now verify the code with the challenge
-      const verificationPromise = supabase.auth.mfa.verify({
+      // Use challengeAndVerify which is more reliable for initial setup
+      setDebugInfo('Verifying code with challengeAndVerify...');
+      
+      const verificationPromise = supabase.auth.mfa.challengeAndVerify({
         factorId,
-        challengeId: challengeData.id,
         code: verificationCode
       });
 
-      // Add timeout to prevent hanging
+      // Shorter timeout for better user experience
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Verification timed out after 30 seconds')), 30000);
+        setTimeout(() => reject(new Error('Verification timed out after 15 seconds')), 15000);
       });
 
       const { data: verifyData, error: verifyError } = await Promise.race([
@@ -166,7 +150,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
     }
   };
 
-  // Alternative verification method using challengeAndVerify
+  // Alternative verification method using separate challenge and verify
   const alternativeVerify = async () => {
     if (!factorId || !verificationCode) return;
 
@@ -175,39 +159,67 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
       setError(null);
       setDebugInfo('Using alternative verification method...');
 
-      console.log('Attempting challengeAndVerify for factor:', factorId);
+      console.log('Creating challenge for factor:', factorId);
 
-      const challengeAndVerifyPromise = supabase.auth.mfa.challengeAndVerify({
+      // Step 1: Create challenge
+      const challengePromise = supabase.auth.mfa.challenge({
+        factorId
+      });
+
+      const challengeTimeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Challenge creation timed out after 10 seconds')), 10000);
+      });
+
+      const { data: challengeData, error: challengeError } = await Promise.race([
+        challengePromise,
+        challengeTimeoutPromise
+      ]) as any;
+
+      if (challengeError) {
+        console.error('Challenge creation failed:', challengeError);
+        throw new Error(`Challenge failed: ${challengeError.message}`);
+      }
+
+      if (!challengeData?.id) {
+        throw new Error('No challenge ID received');
+      }
+
+      console.log('Challenge created:', challengeData.id);
+      setDebugInfo('Challenge created, verifying code...');
+
+      // Step 2: Verify with challenge
+      const verifyPromise = supabase.auth.mfa.verify({
         factorId,
+        challengeId: challengeData.id,
         code: verificationCode
       });
 
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Alternative verification timed out after 30 seconds')), 30000);
+      const verifyTimeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Verification timed out after 15 seconds')), 15000);
       });
 
-      const { data, error } = await Promise.race([
-        challengeAndVerifyPromise,
-        timeoutPromise
+      const { data: verifyData, error: verifyError } = await Promise.race([
+        verifyPromise,
+        verifyTimeoutPromise
       ]) as any;
 
-      if (error) {
-        console.error('ChallengeAndVerify failed:', error);
+      if (verifyError) {
+        console.error('Alternative verification failed:', verifyError);
         
-        if (error.message?.includes('invalid_code')) {
+        if (verifyError.message?.includes('invalid_code')) {
           setError('Invalid verification code. Please check your authenticator app and try again.');
-        } else if (error.message?.includes('expired')) {
+        } else if (verifyError.message?.includes('expired')) {
           setError('Verification code has expired. Please try again with a new code.');
-        } else if (error.message?.includes('timed out')) {
+        } else if (verifyError.message?.includes('timed out')) {
           setError('Alternative verification also timed out. Please check your internet connection.');
         } else {
-          setError(`Alternative verification failed: ${error.message}`);
+          setError(`Alternative verification failed: ${verifyError.message}`);
         }
         return;
       }
 
-      if (data) {
-        console.log('Alternative verification successful:', data);
+      if (verifyData) {
+        console.log('Alternative verification successful:', verifyData);
         setDebugInfo('Alternative verification successful!');
         setStep('success');
         toast.success('Two-factor authentication has been successfully enabled!');
@@ -239,6 +251,17 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
     setStep('initial');
     setIsLoading(false);
     setDebugInfo('');
+  };
+
+  const handleCodeChange = (value: string) => {
+    // Only allow digits and limit to 6 characters
+    const cleanValue = value.replace(/\D/g, '').slice(0, 6);
+    setVerificationCode(cleanValue);
+    
+    // Clear any previous errors when user starts typing
+    if (error && cleanValue.length > 0) {
+      setError(null);
+    }
   };
 
   return (
@@ -296,11 +319,11 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
                 <RefreshCw className="w-3 h-3 inline mr-1" />
                 Try Again
               </button>
-              {step === 'scan' && factorId && (
+              {step === 'scan' && factorId && verificationCode.length === 6 && (
                 <button
                   onClick={alternativeVerify}
                   className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                  disabled={isLoading || verificationCode.length !== 6}
+                  disabled={isLoading}
                 >
                   Alternative Method
                 </button>
@@ -375,7 +398,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
               <input
                 type="text"
                 value={verificationCode}
-                onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                onChange={(e) => handleCodeChange(e.target.value)}
                 placeholder="Enter 6-digit code"
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-center text-lg font-mono"
                 maxLength={6}
@@ -383,7 +406,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
                 disabled={isLoading}
               />
               <p className="text-xs text-gray-500 mt-2 text-center">
-                Make sure to use the current code from your app
+                Make sure to use the current code from your app (codes refresh every 30 seconds)
               </p>
             </div>
 
@@ -403,14 +426,20 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
                 {isLoading ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    {debugInfo.includes('Challenge') ? 'Creating...' : 
-                     debugInfo.includes('verifying') ? 'Verifying...' : 'Processing...'}
+                    {debugInfo.includes('Verifying') ? 'Verifying...' : 
+                     debugInfo.includes('Challenge') ? 'Creating...' : 'Processing...'}
                   </>
                 ) : (
                   'Verify & Enable'
                 )}
               </button>
             </div>
+            
+            {verificationCode.length === 6 && !isLoading && (
+              <p className="text-xs text-center text-gray-500">
+                Tip: If verification hangs, try the "Alternative Method" button above
+              </p>
+            )}
           </div>
         )}
       </div>
