@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Shield, AlertCircle, RefreshCw, X } from 'lucide-react';
+import { Shield, AlertCircle, RefreshCw, X, CheckCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface MFASetupProps {
   onComplete: () => void;
@@ -14,7 +15,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
   const [secret, setSecret] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState('');
   const [factorId, setFactorId] = useState<string | null>(null);
-  const [step, setStep] = useState<'initial' | 'scan' | 'verify'>('initial');
+  const [step, setStep] = useState<'initial' | 'scan' | 'verify' | 'success'>('initial');
 
   const enrollMFA = async () => {
     try {
@@ -30,6 +31,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
         const verifiedFactor = factors.totp.find(f => f.status === 'verified');
         if (verifiedFactor) {
           setError('You already have MFA enabled. Please disable it first before setting up a new factor.');
+          setIsLoading(false);
           return;
         }
       }
@@ -51,6 +53,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
         } else {
           setError(`Failed to set up MFA: ${error.message}`);
         }
+        setIsLoading(false);
         return;
       }
 
@@ -59,11 +62,11 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
         setSecret(data.totp.secret);
         setFactorId(data.id);
         setStep('scan');
+        setIsLoading(false);
       }
     } catch (err) {
       console.error('Unexpected error during MFA enrollment:', err);
       setError('An unexpected error occurred. Please try again or contact support.');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -96,16 +99,23 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
         } else {
           setError(`Verification failed: ${error.message}`);
         }
+        setIsLoading(false);
         return;
       }
 
       if (data) {
-        onComplete();
+        setStep('success');
+        setIsLoading(false);
+        toast.success('Two-factor authentication has been successfully enabled!');
+        
+        // Call onComplete after a brief delay to show success state
+        setTimeout(() => {
+          onComplete();
+        }, 1500);
       }
     } catch (err) {
       console.error('Unexpected error during MFA verification:', err);
       setError('An unexpected error occurred during verification. Please try again.');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -127,12 +137,15 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
             <Shield className="w-6 h-6 text-emerald-600" />
             <h2 className="text-xl font-semibold text-gray-900">Set Up Two-Factor Authentication</h2>
           </div>
-          <button
-            onClick={onCancel}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <X className="w-6 h-6" />
-          </button>
+          {step !== 'success' && (
+            <button
+              onClick={onCancel}
+              className="text-gray-400 hover:text-gray-600"
+              disabled={isLoading}
+            >
+              <X className="w-6 h-6" />
+            </button>
+          )}
         </div>
 
         {error && (
@@ -158,10 +171,23 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
             <button
               onClick={retrySetup}
               className="mt-3 flex items-center gap-2 text-red-600 hover:text-red-700 text-sm font-medium"
+              disabled={isLoading}
             >
               <RefreshCw className="w-4 h-4" />
               Try Again
             </button>
+          </div>
+        )}
+
+        {step === 'success' && (
+          <div className="text-center py-8">
+            <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-8 h-8 text-green-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">MFA Successfully Enabled!</h3>
+            <p className="text-gray-600">
+              Your account is now protected with two-factor authentication.
+            </p>
           </div>
         )}
 
@@ -221,6 +247,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-center text-lg font-mono"
                 maxLength={6}
                 autoFocus
+                disabled={isLoading}
               />
             </div>
 
@@ -228,6 +255,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
               <button
                 onClick={onCancel}
                 className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                disabled={isLoading}
               >
                 Cancel
               </button>
