@@ -10,6 +10,8 @@ import Profile from './components/Profile';
 import About from './components/About';
 import Resources from './components/Resources';
 import MFAAPITest from './components/MFAAPITest';
+import AdminDashboard from './components/AdminDashboard';
+import AdminRoute from './components/AdminRoute';
 
 function App() {
   return (
@@ -53,6 +55,13 @@ function App() {
               <div className="h-full overflow-y-auto">
                 <MFAAPITest />
               </div>
+            } />
+            <Route path="/admin" element={
+              <AdminRoute>
+                <div className="h-full overflow-y-auto">
+                  <AdminDashboard />
+                </div>
+              </AdminRoute>
             } />
           </Routes>
         </main>

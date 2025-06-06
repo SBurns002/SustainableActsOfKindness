@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, LogIn, UserCircle, LogOut, User, Bell, TestTube } from 'lucide-react';
+import { MapPin, LogIn, UserCircle, LogOut, User, Bell, TestTube, Shield } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
@@ -7,6 +7,7 @@ const Header: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [hasUpcomingEvents, setHasUpcomingEvents] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -16,8 +17,10 @@ const Header: React.FC = () => {
       
       if (session?.user) {
         checkUpcomingEvents(session.user.id);
+        checkAdminStatus(session.user.id);
       } else {
         setHasUpcomingEvents(false);
+        setIsAdmin(false);
       }
     });
 
@@ -29,6 +32,7 @@ const Header: React.FC = () => {
       
       if (user) {
         checkUpcomingEvents(user.id);
+        checkAdminStatus(user.id);
       }
     };
     checkAuth();
@@ -53,6 +57,22 @@ const Header: React.FC = () => {
       setHasUpcomingEvents((upcomingReminders?.length || 0) > 0);
     } catch (error) {
       console.error('Error checking upcoming events:', error);
+    }
+  };
+
+  const checkAdminStatus = async (userId: string) => {
+    try {
+      const { data: roles } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('role', 'admin')
+        .single();
+
+      setIsAdmin(!!roles);
+    } catch (error) {
+      // User is not an admin, which is fine
+      setIsAdmin(false);
     }
   };
 
@@ -110,6 +130,15 @@ const Header: React.FC = () => {
                     <div className="ml-auto w-2 h-2 bg-red-500 rounded-full"></div>
                   )}
                 </Link>
+                {isAdmin && (
+                  <Link
+                    to="/admin"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                  >
+                    <Shield className="h-4 w-4 mr-2" />
+                    Admin Dashboard
+                  </Link>
+                )}
                 <Link
                   to="/mfa-test"
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center"
