@@ -34,10 +34,15 @@ const EventDetails: React.FC = () => {
       setIsAuthenticated(!!user);
       
       // Get ALL participants for this event
+      // Use the original event name for database queries since that's what's stored
+      const eventName = decodeURIComponent(id || '');
+      const eventData = eventDataManager.getEventByName(eventName);
+      const queryEventName = eventData?.properties.original_name || eventName;
+      
       const { data: participantsData, error: participantsError } = await supabase
         .from('event_participants')
         .select('id, user_id')
-        .eq('event_id', id);
+        .eq('event_id', queryEventName);
 
       if (participantsError) {
         console.error('Error fetching participants:', participantsError);
@@ -52,7 +57,7 @@ const EventDetails: React.FC = () => {
         const userIsParticipating = participantsData?.some(p => p.user_id === user.id) || false;
         console.log('User participation check:', { 
           userId: user.id, 
-          eventId: id, 
+          eventId: queryEventName, 
           isParticipating: userIsParticipating,
           allParticipants: participantsData?.map(p => p.user_id)
         });
@@ -71,15 +76,19 @@ const EventDetails: React.FC = () => {
 
   useEffect(() => {
     // Find the event using the event data manager (which includes admin updates)
-    const eventData = eventDataManager.getEventByName(decodeURIComponent(id || ''));
+    const eventName = decodeURIComponent(id || '');
+    const eventData = eventDataManager.getEventByName(eventName);
     setEvent(eventData);
 
     fetchEventDetails();
 
     // Listen for event data updates
     const unsubscribe = eventDataManager.addListener(() => {
-      const updatedEventData = eventDataManager.getEventByName(decodeURIComponent(id || ''));
+      console.log('Event data updated, refreshing event details...');
+      const updatedEventData = eventDataManager.getEventByName(eventName);
       setEvent(updatedEventData);
+      // Also refresh participant data in case event name changed
+      fetchEventDetails(true);
     });
 
     return unsubscribe;
@@ -105,15 +114,20 @@ const EventDetails: React.FC = () => {
   useEffect(() => {
     if (!id) return;
 
+    // Use the original event name for database subscriptions
+    const eventName = decodeURIComponent(id);
+    const eventData = eventDataManager.getEventByName(eventName);
+    const queryEventName = eventData?.properties.original_name || eventName;
+
     const channel = supabase
-      .channel(`event_participants_${id}`)
+      .channel(`event_participants_${queryEventName}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'event_participants',
-          filter: `event_id=eq.${id}`
+          filter: `event_id=eq.${queryEventName}`
         },
         (payload) => {
           console.log('Real-time update for event participants:', payload);
@@ -132,7 +146,11 @@ const EventDetails: React.FC = () => {
   useEffect(() => {
     const handleParticipationChange = (event: any) => {
       console.log('Received participation change event:', event.detail);
-      if (event.detail.eventId === id) {
+      const eventName = decodeURIComponent(id || '');
+      const eventData = eventDataManager.getEventByName(eventName);
+      const queryEventName = eventData?.properties.original_name || eventName;
+      
+      if (event.detail.eventId === queryEventName) {
         fetchEventDetails(true);
       }
     };
@@ -149,13 +167,16 @@ const EventDetails: React.FC = () => {
       const reminderDate = new Date(eventDate);
       reminderDate.setDate(reminderDate.getDate() - 1);
 
+      // Use the original event name for database operations
+      const queryEventName = eventData.properties.original_name || eventData.properties.name;
+
       // Use upsert to handle duplicates gracefully
       const { error } = await supabase
         .from('event_reminders')
         .upsert({
           user_id: userId,
-          event_id: id,
-          event_name: eventData.properties.name,
+          event_id: queryEventName,
+          event_name: eventData.properties.name, // Use current name for display
           event_date: eventDate.toISOString(),
           reminder_date: reminderDate.toISOString(),
           is_read: false
@@ -184,12 +205,17 @@ const EventDetails: React.FC = () => {
     }
 
     try {
+      // Use the original event name for database operations
+      const eventName = decodeURIComponent(id || '');
+      const eventData = eventDataManager.getEventByName(eventName);
+      const queryEventName = eventData?.properties.original_name || eventName;
+
       // Check if already participating
       const { data: existingParticipation } = await supabase
         .from('event_participants')
         .select('id')
         .eq('user_id', currentUser.id)
-        .eq('event_id', id)
+        .eq('event_id', queryEventName)
         .maybeSingle();
 
       if (existingParticipation) {
@@ -198,13 +224,13 @@ const EventDetails: React.FC = () => {
         return;
       }
 
-      console.log('Attempting to join event:', { userId: currentUser.id, eventId: id });
+      console.log('Attempting to join event:', { userId: currentUser.id, eventId: queryEventName });
 
       const { error } = await supabase
         .from('event_participants')
         .insert({
           user_id: currentUser.id,
-          event_id: id,
+          event_id: queryEventName,
           notification_preferences: { email: true, push: false }
         });
 
@@ -226,7 +252,7 @@ const EventDetails: React.FC = () => {
       
       // Trigger a broadcast to other components
       window.dispatchEvent(new CustomEvent('eventParticipationChanged', { 
-        detail: { eventId: id, userId: currentUser.id, action: 'joined' } 
+        detail: { eventId: queryEventName, userId: currentUser.id, action: 'joined' } 
       }));
       
     } catch (error: any) {
@@ -247,14 +273,19 @@ const EventDetails: React.FC = () => {
     }
 
     try {
-      console.log('Attempting to leave event:', { userId: currentUser.id, eventId: id });
+      // Use the original event name for database operations
+      const eventName = decodeURIComponent(id || '');
+      const eventData = eventDataManager.getEventByName(eventName);
+      const queryEventName = eventData?.properties.original_name || eventName;
+
+      console.log('Attempting to leave event:', { userId: currentUser.id, eventId: queryEventName });
 
       // Check if user is actually participating
       const { data: currentParticipation } = await supabase
         .from('event_participants')
         .select('id')
         .eq('user_id', currentUser.id)
-        .eq('event_id', id)
+        .eq('event_id', queryEventName)
         .maybeSingle();
 
       if (!currentParticipation) {
@@ -270,7 +301,7 @@ const EventDetails: React.FC = () => {
         .from('event_participants')
         .delete()
         .eq('user_id', currentUser.id)
-        .eq('event_id', id);
+        .eq('event_id', queryEventName);
 
       if (participationError) {
         console.error('Error removing participation:', participationError);
@@ -282,7 +313,7 @@ const EventDetails: React.FC = () => {
         .from('event_reminders')
         .delete()
         .eq('user_id', currentUser.id)
-        .eq('event_id', id);
+        .eq('event_id', queryEventName);
 
       if (reminderError) {
         console.error('Error removing reminder:', reminderError);
@@ -297,7 +328,7 @@ const EventDetails: React.FC = () => {
       
       // Trigger a broadcast to other components
       window.dispatchEvent(new CustomEvent('eventParticipationChanged', { 
-        detail: { eventId: id, userId: currentUser.id, action: 'left' } 
+        detail: { eventId: queryEventName, userId: currentUser.id, action: 'left' } 
       }));
       
     } catch (error: any) {

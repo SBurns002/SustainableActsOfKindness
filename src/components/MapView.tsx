@@ -23,16 +23,20 @@ const MapView: React.FC = () => {
   const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>([]);
   const [filteredData, setFilteredData] = useState(eventDataManager.getMergedEventData());
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [mapKey, setMapKey] = useState(0); // Force map re-render when data changes
 
   useEffect(() => {
     // Listen for event data updates
     const unsubscribe = eventDataManager.addListener(() => {
+      console.log('Event data updated, refreshing map...');
       const mergedData = eventDataManager.getMergedEventData();
       applyFilters(mergedData);
+      // Force map to re-render with new data
+      setMapKey(prev => prev + 1);
     });
 
     return unsubscribe;
-  }, [dateRange, selectedEventTypes]);
+  }, []);
 
   const applyFilters = (data: any) => {
     let filtered = data;
@@ -106,6 +110,7 @@ const MapView: React.FC = () => {
 
   const onEachFeature = (feature: any, layer: any) => {
     layer.on('click', () => {
+      // Use the current name (which might be updated) for navigation
       navigate(`/event/${encodeURIComponent(feature.properties.name)}`);
     });
     
@@ -216,6 +221,7 @@ const MapView: React.FC = () => {
       {/* Map container */}
       <div className="flex-1">
         <MapContainer
+          key={mapKey} // Force re-render when data changes
           center={[42.3601, -71.0589]}
           zoom={12}
           className="w-full h-full"
@@ -229,7 +235,7 @@ const MapView: React.FC = () => {
           
           {filteredData.features.map((feature: any, index: number) => (
             <GeoJSON
-              key={`${feature.properties.name}-${index}-${feature.properties.updated_at || 'static'}`}
+              key={`${feature.properties.name}-${index}-${feature.properties.updated_at || 'static'}-${mapKey}`}
               data={feature}
               style={getFeatureStyle}
               onEachFeature={onEachFeature}

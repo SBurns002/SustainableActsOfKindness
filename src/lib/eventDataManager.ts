@@ -19,11 +19,13 @@ interface EventUpdate {
   status: string;
   created_by: string;
   updated_at: string;
+  original_name?: string; // Track the original name for mapping
 }
 
 class EventDataManager {
   private static instance: EventDataManager;
-  private eventUpdates: Map<string, EventUpdate> = new Map();
+  private eventUpdates: Map<string, EventUpdate> = new Map(); // Key by original name
+  private eventsByTitle: Map<string, EventUpdate> = new Map(); // Key by current title
   private listeners: Set<() => void> = new Set();
 
   private constructor() {
@@ -50,9 +52,23 @@ class EventDataManager {
         return;
       }
 
+      // Clear existing maps
+      this.eventUpdates.clear();
+      this.eventsByTitle.clear();
+
       // Store updates in memory for quick access
       events?.forEach(event => {
-        this.eventUpdates.set(event.title, {
+        // Find the original event in static data to get the original name
+        const originalEvent = cleanupData.features.find(feature => 
+          feature.properties.name === event.title || 
+          // Also check if any static event matches this event's location and type
+          (feature.properties.location === event.location && 
+           feature.properties.eventType === event.event_type)
+        );
+
+        const originalName = originalEvent?.properties.name || event.title;
+
+        const eventUpdate: EventUpdate = {
           id: event.id,
           title: event.title,
           description: event.description,
@@ -69,8 +85,14 @@ class EventDataManager {
           organizer_contact: event.organizer_contact,
           status: event.status,
           created_by: event.created_by,
-          updated_at: event.updated_at
-        });
+          updated_at: event.updated_at,
+          original_name: originalName
+        };
+
+        // Store by original name for mapping to static data
+        this.eventUpdates.set(originalName, eventUpdate);
+        // Also store by current title for lookups
+        this.eventsByTitle.set(event.title, eventUpdate);
       });
 
       this.notifyListeners();
@@ -84,8 +106,8 @@ class EventDataManager {
     const mergedData = { ...cleanupData };
     
     mergedData.features = cleanupData.features.map(feature => {
-      const eventName = feature.properties.name;
-      const update = this.eventUpdates.get(eventName);
+      const originalName = feature.properties.name;
+      const update = this.eventUpdates.get(originalName);
       
       if (update) {
         // Merge the update with the original feature
@@ -93,7 +115,7 @@ class EventDataManager {
           ...feature,
           properties: {
             ...feature.properties,
-            name: update.title,
+            name: update.title, // Use updated title
             description: update.description,
             type: this.getEventTypeLabel(update.event_type),
             eventType: update.event_type,
@@ -109,7 +131,8 @@ class EventDataManager {
             requirements: update.requirements,
             what_to_bring: update.what_to_bring,
             max_participants: update.max_participants,
-            updated_at: update.updated_at
+            updated_at: update.updated_at,
+            original_name: originalName // Keep track of original name
           }
         };
       }
@@ -120,12 +143,18 @@ class EventDataManager {
     return mergedData;
   }
 
-  // Get a specific event by name
+  // Get a specific event by name (checks both current title and original name)
   getEventByName(eventName: string) {
     const mergedData = this.getMergedEventData();
-    return mergedData.features.find(
-      feature => feature.properties.name === eventName
+    return mergedData.features.find(feature => 
+      feature.properties.name === eventName || 
+      feature.properties.original_name === eventName
     );
+  }
+
+  // Get event by current title
+  getEventByTitle(title: string) {
+    return this.eventsByTitle.get(title);
   }
 
   // Update an event (called from admin dashboard)
@@ -134,7 +163,7 @@ class EventDataManager {
       // First, get the existing event to preserve the created_by field
       const { data: existingEvent, error: fetchError } = await supabase
         .from('events')
-        .select('created_by')
+        .select('*')
         .eq('id', eventId)
         .single();
 
@@ -161,8 +190,17 @@ class EventDataManager {
 
       if (error) throw error;
 
+      // Find the original name for this event
+      const originalEvent = cleanupData.features.find(feature => 
+        feature.properties.name === existingEvent.title ||
+        (feature.properties.location === existingEvent.location && 
+         feature.properties.eventType === existingEvent.event_type)
+      );
+
+      const originalName = originalEvent?.properties.name || existingEvent.title;
+
       // Update local cache
-      this.eventUpdates.set(data.title, {
+      const eventUpdate: EventUpdate = {
         id: data.id,
         title: data.title,
         description: data.description,
@@ -179,8 +217,18 @@ class EventDataManager {
         organizer_contact: data.organizer_contact,
         status: data.status,
         created_by: data.created_by,
-        updated_at: data.updated_at
-      });
+        updated_at: data.updated_at,
+        original_name: originalName
+      };
+
+      // Remove old entries if title changed
+      if (existingEvent.title !== data.title) {
+        this.eventsByTitle.delete(existingEvent.title);
+      }
+
+      // Update both maps
+      this.eventUpdates.set(originalName, eventUpdate);
+      this.eventsByTitle.set(data.title, eventUpdate);
 
       // Notify all listeners about the update
       this.notifyListeners();
@@ -218,6 +266,14 @@ class EventDataManager {
   // Refresh data from database
   async refresh() {
     await this.loadEventUpdates();
+  }
+
+  // Get all events (useful for debugging)
+  getAllEvents() {
+    return {
+      byOriginalName: Array.from(this.eventUpdates.entries()),
+      byCurrentTitle: Array.from(this.eventsByTitle.entries())
+    };
   }
 }
 
