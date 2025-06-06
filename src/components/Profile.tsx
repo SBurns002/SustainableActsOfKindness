@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Calendar, Bell, Settings, Loader, Clock, CheckCircle, AlertCircle, UserMinus, Eye } from 'lucide-react';
+import { Calendar, Bell, Settings, Loader, Clock, CheckCircle, AlertCircle, UserMinus, Eye, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { cleanupData } from '../data/cleanupData';
 
 interface EventParticipation {
   id: string;
@@ -31,6 +32,74 @@ const Profile: React.FC = () => {
   const [participations, setParticipations] = useState<EventParticipation[]>([]);
   const [reminders, setReminders] = useState<EventReminder[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [creatingReminders, setCreatingReminders] = useState(false);
+
+  const getEventDetails = (eventId: string) => {
+    return cleanupData.features.find(
+      feature => feature.properties.name === eventId
+    );
+  };
+
+  const getDaysUntilEvent = (eventDate: string) => {
+    const now = new Date();
+    const event = new Date(eventDate);
+    const diffTime = event.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  const createMissingReminders = async () => {
+    if (!currentUser || participations.length === 0) return;
+
+    setCreatingReminders(true);
+    let remindersCreated = 0;
+
+    try {
+      for (const participation of participations) {
+        // Check if reminder already exists
+        const existingReminder = reminders.find(r => r.event_id === participation.event_id);
+        if (existingReminder) continue;
+
+        // Get event details
+        const eventDetails = getEventDetails(participation.event_id);
+        if (!eventDetails) continue;
+
+        const eventDate = new Date(eventDetails.properties.date);
+        const reminderDate = new Date(eventDate);
+        reminderDate.setDate(reminderDate.getDate() - 1); // Remind 1 day before
+
+        // Only create reminder for future events
+        if (eventDate > new Date()) {
+          const { error } = await supabase
+            .from('event_reminders')
+            .insert({
+              user_id: currentUser.id,
+              event_id: participation.event_id,
+              event_name: eventDetails.properties.name,
+              event_date: eventDate.toISOString(),
+              reminder_date: reminderDate.toISOString(),
+              is_read: false
+            });
+
+          if (error && error.code !== '23505') { // Ignore duplicate key errors
+            console.error('Error creating reminder:', error);
+          } else if (!error) {
+            remindersCreated++;
+          }
+        }
+      }
+
+      if (remindersCreated > 0) {
+        toast.success(`Created ${remindersCreated} event reminder${remindersCreated > 1 ? 's' : ''}!`);
+        await fetchUserData(true);
+      }
+    } catch (error) {
+      console.error('Error creating reminders:', error);
+      toast.error('Failed to create some reminders');
+    } finally {
+      setCreatingReminders(false);
+    }
+  };
 
   const fetchUserData = async (forceRefresh = false) => {
     try {
@@ -166,6 +235,25 @@ const Profile: React.FC = () => {
     };
   }, [currentUser]);
 
+  // Auto-create missing reminders when participations are loaded
+  useEffect(() => {
+    if (participations.length > 0 && reminders.length >= 0 && currentUser) {
+      const participationsWithoutReminders = participations.filter(p => {
+        const hasReminder = reminders.some(r => r.event_id === p.event_id);
+        const eventDetails = getEventDetails(p.event_id);
+        const isFutureEvent = eventDetails && new Date(eventDetails.properties.date) > new Date();
+        return !hasReminder && isFutureEvent;
+      });
+
+      if (participationsWithoutReminders.length > 0) {
+        // Auto-create reminders after a short delay
+        setTimeout(() => {
+          createMissingReminders();
+        }, 1000);
+      }
+    }
+  }, [participations, reminders, currentUser]);
+
   const updateNotificationPreferences = async (participationId: string, preferences: any) => {
     try {
       const { error } = await supabase
@@ -275,19 +363,44 @@ const Profile: React.FC = () => {
   };
 
   const getEventStatus = (eventDate: string) => {
-    const now = new Date();
-    const event = new Date(eventDate);
-    const diffTime = event.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const daysUntil = getDaysUntilEvent(eventDate);
 
-    if (diffDays < 0) {
-      return { status: 'past', text: 'Event completed', color: 'text-gray-500', icon: CheckCircle };
-    } else if (diffDays === 0) {
-      return { status: 'today', text: 'Today!', color: 'text-red-600', icon: AlertCircle };
-    } else if (diffDays <= 3) {
-      return { status: 'upcoming', text: `In ${diffDays} day${diffDays > 1 ? 's' : ''}`, color: 'text-amber-600', icon: Clock };
+    if (daysUntil < 0) {
+      return { 
+        status: 'past', 
+        text: 'Event completed', 
+        color: 'text-gray-500', 
+        bgColor: 'bg-gray-100',
+        icon: CheckCircle,
+        days: Math.abs(daysUntil)
+      };
+    } else if (daysUntil === 0) {
+      return { 
+        status: 'today', 
+        text: 'Today!', 
+        color: 'text-red-600', 
+        bgColor: 'bg-red-100',
+        icon: AlertCircle,
+        days: 0
+      };
+    } else if (daysUntil <= 3) {
+      return { 
+        status: 'upcoming', 
+        text: `${daysUntil} day${daysUntil > 1 ? 's' : ''} left`, 
+        color: 'text-amber-600', 
+        bgColor: 'bg-amber-100',
+        icon: Clock,
+        days: daysUntil
+      };
     } else {
-      return { status: 'future', text: `In ${diffDays} days`, color: 'text-blue-600', icon: Calendar };
+      return { 
+        status: 'future', 
+        text: `${daysUntil} days left`, 
+        color: 'text-blue-600', 
+        bgColor: 'bg-blue-100',
+        icon: Calendar,
+        days: daysUntil
+      };
     }
   };
 
@@ -302,6 +415,14 @@ const Profile: React.FC = () => {
   const upcomingReminders = reminders.filter(r => new Date(r.event_date) >= new Date());
   const pastReminders = reminders.filter(r => new Date(r.event_date) < new Date());
 
+  // Check for participations without reminders
+  const participationsWithoutReminders = participations.filter(p => {
+    const hasReminder = reminders.some(r => r.event_id === p.event_id);
+    const eventDetails = getEventDetails(p.event_id);
+    const isFutureEvent = eventDetails && new Date(eventDetails.properties.date) > new Date();
+    return !hasReminder && isFutureEvent;
+  });
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="bg-white rounded-lg shadow-lg p-8">
@@ -313,10 +434,27 @@ const Profile: React.FC = () => {
         <div className="space-y-8">
           {/* Event Reminders Section */}
           <div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-              <Bell className="w-5 h-5 mr-2" />
-              Event Reminders
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                <Bell className="w-5 h-5 mr-2" />
+                Event Reminders
+              </h2>
+              {participationsWithoutReminders.length > 0 && (
+                <button
+                  onClick={createMissingReminders}
+                  disabled={creatingReminders}
+                  className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>
+                    {creatingReminders 
+                      ? 'Creating...' 
+                      : `Create ${participationsWithoutReminders.length} Reminder${participationsWithoutReminders.length > 1 ? 's' : ''}`
+                    }
+                  </span>
+                </button>
+              )}
+            </div>
             
             {upcomingReminders.length === 0 && pastReminders.length === 0 ? (
               <div className="text-gray-600 bg-gray-50 rounded-lg p-6 text-center">
@@ -359,15 +497,15 @@ const Profile: React.FC = () => {
                                     </span>
                                   )}
                                 </div>
-                                <div className="flex items-center space-x-4 text-sm text-gray-600">
+                                <div className="flex items-center space-x-4 text-sm text-gray-600 mb-2">
                                   <div className="flex items-center space-x-1">
                                     <Calendar className="w-4 h-4" />
                                     <span>{new Date(reminder.event_date).toLocaleDateString()}</span>
                                   </div>
-                                  <div className={`flex items-center space-x-1 ${eventStatus.color}`}>
-                                    <StatusIcon className="w-4 h-4" />
-                                    <span className="font-medium">{eventStatus.text}</span>
-                                  </div>
+                                </div>
+                                <div className={`inline-flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium ${eventStatus.color} ${eventStatus.bgColor}`}>
+                                  <StatusIcon className="w-4 h-4" />
+                                  <span>{eventStatus.text}</span>
                                 </div>
                               </div>
                               <div className="flex items-center space-x-2">
@@ -446,53 +584,68 @@ const Profile: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {participations.map((participation) => (
-                  <div
-                    key={participation.id}
-                    className="border border-gray-200 rounded-lg p-4 hover:border-emerald-500 transition-colors"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-medium text-gray-900">{participation.event_id}</h3>
-                        <p className="text-sm text-gray-500">
-                          Joined on {new Date(participation.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-2">
-                          <Bell className="w-4 h-4 text-gray-400" />
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              className="sr-only peer"
-                              checked={participation.notification_preferences.email}
-                              onChange={() => updateNotificationPreferences(participation.id, {
-                                ...participation.notification_preferences,
-                                email: !participation.notification_preferences.email
-                              })}
-                            />
-                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                            <span className="ml-2 text-sm font-medium text-gray-700">Email</span>
-                          </label>
+                {participations.map((participation) => {
+                  const eventDetails = getEventDetails(participation.event_id);
+                  const eventStatus = eventDetails ? getEventStatus(eventDetails.properties.date) : null;
+                  const StatusIcon = eventStatus?.icon || Calendar;
+                  
+                  return (
+                    <div
+                      key={participation.id}
+                      className="border border-gray-200 rounded-lg p-4 hover:border-emerald-500 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-medium text-gray-900">{participation.event_id}</h3>
+                          <div className="flex items-center space-x-4 text-sm text-gray-500 mt-1">
+                            <span>Joined on {new Date(participation.created_at).toLocaleDateString()}</span>
+                            {eventDetails && (
+                              <span>Event: {new Date(eventDetails.properties.date).toLocaleDateString()}</span>
+                            )}
+                          </div>
+                          {eventStatus && (
+                            <div className={`inline-flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium mt-2 ${eventStatus.color} ${eventStatus.bgColor}`}>
+                              <StatusIcon className="w-4 h-4" />
+                              <span>{eventStatus.text}</span>
+                            </div>
+                          )}
                         </div>
-                        <button
-                          onClick={() => navigate(`/event/${encodeURIComponent(participation.event_id)}`)}
-                          className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center space-x-1"
-                        >
-                          <Eye className="w-4 h-4" />
-                          <span>View</span>
-                        </button>
-                        <button
-                          onClick={() => handleLeaveEvent(participation.event_id, participation.event_id)}
-                          className="text-red-600 hover:text-red-700 text-sm font-medium flex items-center space-x-1"
-                        >
-                          <UserMinus className="w-4 h-4" />
-                          <span>Leave</span>
-                        </button>
+                        <div className="flex items-center space-x-4">
+                          <div className="flex items-center space-x-2">
+                            <Bell className="w-4 h-4 text-gray-400" />
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                className="sr-only peer"
+                                checked={participation.notification_preferences.email}
+                                onChange={() => updateNotificationPreferences(participation.id, {
+                                  ...participation.notification_preferences,
+                                  email: !participation.notification_preferences.email
+                                })}
+                              />
+                              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                              <span className="ml-2 text-sm font-medium text-gray-700">Email</span>
+                            </label>
+                          </div>
+                          <button
+                            onClick={() => navigate(`/event/${encodeURIComponent(participation.event_id)}`)}
+                            className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center space-x-1"
+                          >
+                            <Eye className="w-4 h-4" />
+                            <span>View</span>
+                          </button>
+                          <button
+                            onClick={() => handleLeaveEvent(participation.event_id, participation.event_id)}
+                            className="text-red-600 hover:text-red-700 text-sm font-medium flex items-center space-x-1"
+                          >
+                            <UserMinus className="w-4 h-4" />
+                            <span>Leave</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
