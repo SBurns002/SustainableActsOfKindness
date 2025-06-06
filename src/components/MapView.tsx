@@ -168,23 +168,25 @@ const MapView: React.FC = () => {
               ))}
               
               {/* Authentication Button */}
-              {isAuthenticated ? (
-                <button
-                  onClick={() => navigate('/profile')}
-                  className="w-full flex items-center space-x-3 px-4 py-3 text-left text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg transition-colors duration-200"
-                >
-                  <UserCircle className="w-5 h-5" />
-                  <span className="font-medium">Profile</span>
-                </button>
-              ) : (
-                <button
-                  onClick={() => navigate('/auth')}
-                  className="w-full flex items-center space-x-3 px-4 py-3 text-left bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg transition-colors duration-200"
-                >
-                  <LogIn className="w-5 h-5" />
-                  <span className="font-medium">Login / Sign Up</span>
-                </button>
-              )}
+              <div className="flex justify-center mt-4">
+                {isAuthenticated ? (
+                  <button
+                    onClick={() => navigate('/profile')}
+                    className="flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg transition-colors duration-200"
+                  >
+                    <UserCircle className="w-5 h-5" />
+                    <span className="font-medium">Profile</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => navigate('/auth')}
+                    className="flex items-center space-x-3 px-4 py-3 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg transition-colors duration-200"
+                  >
+                    <LogIn className="w-5 h-5" />
+                    <span className="font-medium">Login / Sign Up</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

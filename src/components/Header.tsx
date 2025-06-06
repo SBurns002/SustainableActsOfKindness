@@ -35,7 +35,7 @@ const Header: React.FC = () => {
       <div className="container mx-auto flex justify-between items-center">
         <Link to="/" className="flex items-center space-x-2">
           <MapPin className="h-6 w-6" />
-          <h1 className="text-xl font-bold">Sustainable Acts of Kindness</h1>
+          <h1 className="text-xl font-bold text-center">Sustainable Acts of Kindness</h1>
         </Link>
         
         <div className="flex items-center space-x-6">
