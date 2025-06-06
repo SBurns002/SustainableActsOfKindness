@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import MFAChallenge from './MFAChallenge';
-import { ArrowLeft, Mail, CheckCircle, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Mail, CheckCircle } from 'lucide-react';
 
 const Auth: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -333,20 +333,6 @@ const Auth: React.FC = () => {
               </div>
             ) : (
               <form className="space-y-6" onSubmit={handlePasswordReset}>
-                {/* Warning about explicit action required */}
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-                  <div className="flex items-start">
-                    <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 mr-3 flex-shrink-0" />
-                    <div>
-                      <h4 className="text-sm font-medium text-amber-900">Action Required</h4>
-                      <p className="text-sm text-amber-800 mt-1">
-                        You must click "Send Password Reset Email" below to receive a new reset link. 
-                        No email will be sent automatically.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
                 <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-6">
                   <div className="flex items-start">
                     <Mail className="w-5 h-5 text-emerald-600 mt-0.5 mr-3 flex-shrink-0" />
