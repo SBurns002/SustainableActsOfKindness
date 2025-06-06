@@ -19,9 +19,11 @@ import {
   Shield,
   UserPlus,
   UserMinus,
-  Settings
+  Settings,
+  TestTube
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import MFAAPITest from './MFAAPITest';
 
 interface Event {
   id: string;
@@ -77,6 +79,7 @@ const AdminDashboard: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [showEventForm, setShowEventForm] = useState(false);
   const [showUserManagement, setShowUserManagement] = useState(false);
+  const [showMFATest, setShowMFATest] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -428,6 +431,13 @@ const AdminDashboard: React.FC = () => {
           </div>
           <div className="flex space-x-4">
             <button
+              onClick={() => setShowMFATest(true)}
+              className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors flex items-center space-x-2"
+            >
+              <TestTube className="w-5 h-5" />
+              <span>MFA Test</span>
+            </button>
+            <button
               onClick={() => setShowUserManagement(true)}
               className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
             >
@@ -643,6 +653,26 @@ const AdminDashboard: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* MFA Test Modal */}
+      {showMFATest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">MFA API Testing Suite</h2>
+                <button
+                  onClick={() => setShowMFATest(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <MFAAPITest />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* User Management Modal */}
       {showUserManagement && (

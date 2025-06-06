@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, LogIn, UserCircle, LogOut, User, Bell, TestTube, Shield } from 'lucide-react';
+import { MapPin, LogIn, UserCircle, LogOut, User, Bell, Shield } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
@@ -96,13 +96,6 @@ const Header: React.FC = () => {
               <li><Link to="/about" className="hover:text-emerald-200 transition-colors">About</Link></li>
               <li><Link to="/resources" className="hover:text-emerald-200 transition-colors">Resources</Link></li>
               <li><a href="#" className="hover:text-emerald-200 transition-colors">Contact</a></li>
-              {/* Only show MFA Test link for admin users */}
-              {isAdmin && (
-                <li><Link to="/mfa-test" className="hover:text-emerald-200 transition-colors flex items-center space-x-1">
-                  <TestTube className="w-4 h-4" />
-                  <span>MFA Test</span>
-                </Link></li>
-              )}
             </ul>
           </nav>
 
