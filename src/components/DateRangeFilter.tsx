@@ -18,6 +18,10 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onDateRangeChange, da
   const [endDate, setEndDate] = useState<Date | null>(dateRange.endDate);
   const [error, setError] = useState<string | null>(null);
 
+  // Get today's date at midnight for comparison
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   useEffect(() => {
     if (startDate && endDate && startDate > endDate) {
       setError('End date cannot be before start date');
@@ -27,9 +31,18 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onDateRangeChange, da
     }
   }, [startDate, endDate, onDateRangeChange]);
 
+  const handleStartDateChange = (date: Date | null) => {
+    if (date && date < today) {
+      setError('Start date cannot be in the past');
+      return;
+    }
+    setStartDate(date);
+  };
+
   const handleReset = () => {
     setStartDate(null);
     setEndDate(null);
+    setError(null);
   };
 
   return (
@@ -44,10 +57,11 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onDateRangeChange, da
           <DatePicker
             id="start-date"
             selected={startDate}
-            onChange={setStartDate}
+            onChange={handleStartDateChange}
             selectsStart
             startDate={startDate}
             endDate={endDate}
+            minDate={today}
             placeholderText="Select start date"
             className="w-full p-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
             dateFormat="MM/dd/yyyy"
@@ -65,7 +79,7 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onDateRangeChange, da
             selectsEnd
             startDate={startDate}
             endDate={endDate}
-            minDate={startDate}
+            minDate={startDate || today}
             placeholderText="Select end date"
             className="w-full p-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
             dateFormat="MM/dd/yyyy"
