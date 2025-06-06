@@ -341,26 +341,47 @@ const Profile: React.FC = () => {
   };
 
   const disableMfa = async (factorId: string) => {
+    // Validate factorId before proceeding
+    if (!factorId || typeof factorId !== 'string' || factorId.trim() === '') {
+      console.error('Invalid factorId provided:', factorId);
+      toast.error('Invalid MFA factor ID. Please refresh the page and try again.');
+      return;
+    }
+
     if (!confirm('Are you sure you want to disable MFA? This will make your account less secure.')) {
       return;
     }
 
     setMfaLoading(true);
     try {
-      const { error } = await supabase.auth.mfa.unenroll({ factorId });
+      const { error } = await supabase.auth.mfa.unenroll({ factorId: factorId.trim() });
 
       if (error) {
         console.error('MFA disable error:', error);
-        toast.error('Failed to disable MFA');
+        
+        // Provide more specific error messages based on error type
+        if (error.message?.includes('Failed to fetch')) {
+          toast.error('Network error: Unable to connect to the server. Please check your internet connection and try again.');
+        } else if (error.message?.includes('not found') || error.message?.includes('invalid')) {
+          toast.error('MFA factor not found. Please refresh the page and try again.');
+        } else {
+          toast.error(`Failed to disable MFA: ${error.message}`);
+        }
         return;
       }
 
       toast.success('MFA has been disabled');
       await fetchMfaFactors();
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error disabling MFA:', error);
-      toast.error('Failed to disable MFA');
+      
+      // Enhanced error handling for network issues
+      if (error.message?.includes('Failed to fetch') || error.name === 'TypeError') {
+        toast.error('Network error: Unable to connect to the server. Please check your internet connection and try again.');
+      } else {
+        toast.error(`Failed to disable MFA: ${error.message || 'Unknown error occurred'}`);
+      }
     } finally {
       setMfaLoading(false);
     }
