@@ -45,7 +45,7 @@ const Profile: React.FC = () => {
   const [mfaFactors, setMfaFactors] = useState<MFAFactor[]>([]);
   const [showMfaSetup, setShowMfaSetup] = useState(false);
   const [showMfaDisable, setShowMfaDisable] = useState(false);
-  const [dataLoaded, setDataLoaded] = useState(false);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   const getEventDetails = (eventId: string) => {
     return cleanupData.features.find(
@@ -61,7 +61,7 @@ const Profile: React.FC = () => {
     return diffDays;
   };
 
-  const fetchMfaFactors = useCallback(async () => {
+  const fetchMfaFactors = async () => {
     try {
       const { data, error } = await supabase.auth.mfa.listFactors();
       
@@ -74,7 +74,7 @@ const Profile: React.FC = () => {
     } catch (error) {
       console.error('Error fetching MFA factors:', error);
     }
-  }, []);
+  };
 
   const createMissingReminders = async () => {
     if (!currentUser || participations.length === 0) return;
@@ -135,7 +135,7 @@ const Profile: React.FC = () => {
     }
   };
 
-  const fetchUserData = useCallback(async (forceRefresh = false) => {
+  const fetchUserData = async (forceRefresh = false) => {
     try {
       console.log('Fetching user data, forceRefresh:', forceRefresh);
       
@@ -196,7 +196,6 @@ const Profile: React.FC = () => {
       // Fetch MFA factors
       await fetchMfaFactors();
 
-      setDataLoaded(true);
       console.log('User data fetch completed successfully');
 
     } catch (error) {
@@ -204,23 +203,32 @@ const Profile: React.FC = () => {
       toast.error('Failed to load profile data');
     } finally {
       setLoading(false);
+      setInitialLoadComplete(true);
     }
-  }, [navigate, fetchMfaFactors]);
+  };
 
-  // Initial data fetch
+  // Initial data fetch - only run once on mount
   useEffect(() => {
     console.log('Profile component mounted, fetching initial data');
     fetchUserData();
-  }, [fetchUserData]);
+  }, []); // Empty dependency array - only run once
 
   // Listen for auth state changes and refresh data
   useEffect(() => {
     console.log('Setting up auth state listener');
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, !!session);
+      
+      // Only handle auth changes after initial load is complete
+      if (!initialLoadComplete) {
+        console.log('Skipping auth state change - initial load not complete');
+        return;
+      }
+      
       if (session) {
         setCurrentUser(session.user);
-        if (dataLoaded) {
+        // Only refresh data if we have a different user
+        if (!currentUser || currentUser.id !== session.user.id) {
           await fetchUserData(true);
         }
       } else {
@@ -236,13 +244,13 @@ const Profile: React.FC = () => {
       console.log('Cleaning up auth state listener');
       subscription.unsubscribe();
     };
-  }, [navigate, fetchUserData, dataLoaded]);
+  }, [initialLoadComplete, currentUser, navigate]);
 
   // Listen for custom events from other components
   useEffect(() => {
     const handleParticipationChange = (event: any) => {
       console.log('Received participation change event:', event.detail);
-      if (currentUser && event.detail.userId === currentUser.id && dataLoaded) {
+      if (currentUser && event.detail.userId === currentUser.id && initialLoadComplete) {
         fetchUserData(true);
       }
     };
@@ -251,11 +259,11 @@ const Profile: React.FC = () => {
     return () => {
       window.removeEventListener('eventParticipationChanged', handleParticipationChange);
     };
-  }, [currentUser, fetchUserData, dataLoaded]);
+  }, [currentUser, initialLoadComplete]);
 
   // Set up real-time subscription with better error handling
   useEffect(() => {
-    if (!currentUser || !dataLoaded) return;
+    if (!currentUser || !initialLoadComplete) return;
 
     console.log('Setting up real-time subscriptions for user:', currentUser.id);
     let participationsChannel: any = null;
@@ -324,7 +332,7 @@ const Profile: React.FC = () => {
         console.warn('Error cleaning up real-time subscriptions:', error);
       }
     };
-  }, [currentUser, fetchUserData, dataLoaded]);
+  }, [currentUser, initialLoadComplete]);
 
   const updateNotificationPreferences = async (participationId: string, preferences: any) => {
     try {
