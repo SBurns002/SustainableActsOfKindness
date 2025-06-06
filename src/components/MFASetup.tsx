@@ -13,6 +13,7 @@ const MFASetup: React.FC<MFASetupProps> = ({ onComplete, onCancel }) => {
   const [step, setStep] = useState<'setup' | 'verify'>('setup');
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [secret, setSecret] = useState<string>('');
+  const [factorId, setFactorId] = useState<string>('');
   const [verificationCode, setVerificationCode] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -33,6 +34,7 @@ const MFASetup: React.FC<MFASetupProps> = ({ onComplete, onCancel }) => {
 
       if (data) {
         setSecret(data.totp.secret);
+        setFactorId(data.id);
         
         // Generate QR code
         const qrCodeDataUrl = await QRCode.toDataURL(data.totp.uri);
@@ -56,7 +58,7 @@ const MFASetup: React.FC<MFASetupProps> = ({ onComplete, onCancel }) => {
       setLoading(true);
 
       const { data, error } = await supabase.auth.mfa.challengeAndVerify({
-        factorId: secret,
+        factorId: factorId,
         code: verificationCode
       });
 
