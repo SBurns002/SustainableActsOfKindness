@@ -13,116 +13,121 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState('');
-  const [challengeId, setChallengeId] = useState<string | null>(null);
   const [step, setStep] = useState<'verify' | 'success'>('verify');
+  const [debugInfo, setDebugInfo] = useState<string>('');
 
-  React.useEffect(() => {
-    initializeChallenge();
-  }, []);
+  const disableMFA = async () => {
+    if (!verificationCode || verificationCode.length !== 6) {
+      setError('Please enter a valid 6-digit code');
+      return;
+    }
 
-  const initializeChallenge = async () => {
     try {
       setIsLoading(true);
       setError(null);
+      setDebugInfo('Starting MFA disable process...');
 
-      const { data, error } = await supabase.auth.mfa.challenge({
+      console.log('Starting MFA disable for factor:', totpFactorId);
+
+      // Step 1: Create challenge
+      setDebugInfo('Creating MFA challenge...');
+      const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
         factorId: totpFactorId
       });
 
-      if (error) {
-        console.error('MFA challenge error:', error);
-        
-        if (error.message?.includes('mfa_disabled')) {
-          setError('Multi-factor authentication is already disabled.');
-        } else if (error.message?.includes('factor_not_found')) {
-          setError('MFA factor not found.');
-        } else {
-          setError(`Failed to initialize MFA challenge: ${error.message}`);
-        }
-        return;
+      if (challengeError) {
+        console.error('Challenge creation failed:', challengeError);
+        throw new Error(`Challenge failed: ${challengeError.message}`);
       }
 
-      if (data) {
-        setChallengeId(data.id);
+      if (!challengeData?.id) {
+        throw new Error('No challenge ID received');
       }
-    } catch (err) {
-      console.error('Unexpected error during MFA challenge initialization:', err);
-      setError('An unexpected error occurred. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
-  const disableMFA = async () => {
-    if (!challengeId || !verificationCode) return;
+      console.log('Challenge created:', challengeData.id);
 
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      // First verify the code
+      // Step 2: Verify the code
+      setDebugInfo('Verifying code...');
       const { data: verifyData, error: verifyError } = await supabase.auth.mfa.verify({
         factorId: totpFactorId,
-        challengeId,
+        challengeId: challengeData.id,
         code: verificationCode
       });
 
       if (verifyError) {
-        console.error('MFA verification error:', verifyError);
+        console.error('Verification failed:', verifyError);
         
         if (verifyError.message?.includes('invalid_code')) {
-          setError('Invalid verification code. Please check your authenticator app and try again.');
+          throw new Error('Invalid verification code. Please check your authenticator app and try again.');
         } else if (verifyError.message?.includes('expired')) {
-          setError('Verification code has expired. Please try again with a new code.');
-        } else if (verifyError.message?.includes('too_many_attempts')) {
-          setError('Too many failed attempts. Please wait before trying again.');
+          throw new Error('Verification code has expired. Please try again with a new code.');
         } else {
-          setError(`Verification failed: ${verifyError.message}`);
+          throw new Error(`Verification failed: ${verifyError.message}`);
         }
-        
-        setVerificationCode('');
-        return;
       }
 
-      // Then unenroll the factor
+      console.log('Code verified successfully');
+
+      // Step 3: Unenroll the factor
+      setDebugInfo('Disabling MFA factor...');
       const { error: unenrollError } = await supabase.auth.mfa.unenroll({
         factorId: totpFactorId
       });
 
       if (unenrollError) {
-        console.error('MFA unenroll error:', unenrollError);
-        
-        if (unenrollError.message?.includes('factor_not_found')) {
-          setError('MFA factor not found or already disabled.');
-        } else {
-          setError(`Failed to disable MFA: ${unenrollError.message}`);
-        }
-        return;
+        console.error('Unenroll failed:', unenrollError);
+        throw new Error(`Failed to disable MFA: ${unenrollError.message}`);
       }
 
+      console.log('MFA disabled successfully');
+      setDebugInfo('MFA disabled successfully!');
       setStep('success');
       toast.success('Two-factor authentication has been successfully disabled.');
       
-      // Call onSuccess after a brief delay to show success state
+      // Call onSuccess after a brief delay
       setTimeout(() => {
         onSuccess();
       }, 1500);
 
-    } catch (err) {
-      console.error('Unexpected error during MFA disable:', err);
-      setError('An unexpected error occurred. Please try again.');
+    } catch (err: any) {
+      console.error('MFA disable error:', err);
+      setError(err.message || 'An unexpected error occurred. Please try again.');
       setVerificationCode('');
+      setDebugInfo('');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const retryChallenge = () => {
-    setError(null);
-    setVerificationCode('');
-    setChallengeId(null);
-    setIsLoading(false);
-    initializeChallenge();
+  // Simple direct disable without challenge (fallback method)
+  const directDisable = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      setDebugInfo('Attempting direct disable...');
+
+      const { error } = await supabase.auth.mfa.unenroll({
+        factorId: totpFactorId
+      });
+
+      if (error) {
+        console.error('Direct disable failed:', error);
+        throw new Error(`Direct disable failed: ${error.message}`);
+      }
+
+      setStep('success');
+      toast.success('Two-factor authentication has been successfully disabled.');
+      
+      setTimeout(() => {
+        onSuccess();
+      }, 1500);
+
+    } catch (err: any) {
+      console.error('Direct disable error:', err);
+      setError(err.message || 'Direct disable failed. Please try the normal method.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -164,12 +169,17 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
                 <div>
                   <p className="text-amber-800 font-medium">Security Warning</p>
                   <p className="text-amber-700 text-sm mt-1">
-                    Disabling two-factor authentication will make your account less secure. 
-                    Only proceed if you're sure you want to remove this protection.
+                    Disabling two-factor authentication will make your account less secure.
                   </p>
                 </div>
               </div>
             </div>
+
+            {debugInfo && (
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-blue-800 text-sm">{debugInfo}</p>
+              </div>
+            )}
 
             {error && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -180,60 +190,70 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
                     <p className="text-red-700 text-sm mt-1">{error}</p>
                   </div>
                 </div>
-                <button
-                  onClick={retryChallenge}
-                  className="mt-3 flex items-center gap-2 text-red-600 hover:text-red-700 text-sm font-medium"
-                  disabled={isLoading}
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  Try Again
-                </button>
-              </div>
-            )}
-
-            {!error && (
-              <div className="space-y-6">
-                <div>
-                  <p className="text-gray-600 mb-4">
-                    To disable two-factor authentication, enter the 6-digit verification code from your authenticator app.
-                  </p>
-                  <input
-                    type="text"
-                    value={verificationCode}
-                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="Enter 6-digit code"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-center text-lg font-mono"
-                    maxLength={6}
-                    autoFocus
-                    disabled={isLoading || !challengeId}
-                  />
-                </div>
-
-                <div className="flex gap-3">
+                <div className="mt-3 flex gap-2">
                   <button
-                    onClick={onCancel}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                    onClick={() => {
+                      setError(null);
+                      setDebugInfo('');
+                      setVerificationCode('');
+                    }}
+                    className="text-red-600 hover:text-red-700 text-sm font-medium"
                     disabled={isLoading}
                   >
-                    Cancel
+                    Try Again
                   </button>
                   <button
-                    onClick={disableMFA}
-                    disabled={isLoading || verificationCode.length !== 6 || !challengeId}
-                    className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    onClick={directDisable}
+                    className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                    disabled={isLoading}
                   >
-                    {isLoading ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        Disabling...
-                      </>
-                    ) : (
-                      'Disable MFA'
-                    )}
+                    Try Direct Disable
                   </button>
                 </div>
               </div>
             )}
+
+            <div className="space-y-6">
+              <div>
+                <p className="text-gray-600 mb-4">
+                  Enter the 6-digit verification code from your authenticator app to disable MFA.
+                </p>
+                <input
+                  type="text"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="Enter 6-digit code"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-center text-lg font-mono"
+                  maxLength={6}
+                  autoFocus
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={onCancel}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  disabled={isLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={disableMFA}
+                  disabled={isLoading || verificationCode.length !== 6}
+                  className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isLoading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Disabling...
+                    </>
+                  ) : (
+                    'Disable MFA'
+                  )}
+                </button>
+              </div>
+            </div>
           </>
         )}
       </div>
