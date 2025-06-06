@@ -322,17 +322,8 @@ Sustainable Acts of Kindness Platform`;
                 >
                   <div className="p-6">
                     <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="bg-emerald-100 p-2 rounded-lg">
-                          <CategoryIcon className="w-5 h-5 text-emerald-600" />
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          {resource.type === 'external' ? (
-                            <ExternalLink className="w-4 h-4 text-blue-600" />
-                          ) : (
-                            <Download className="w-4 h-4 text-red-600" />
-                          )}
-                        </div>
+                      <div className="bg-emerald-100 p-2 rounded-lg">
+                        <CategoryIcon className="w-5 h-5 text-emerald-600" />
                       </div>
                       {resource.readTime && (
                         <span className="text-xs text-gray-500">{resource.readTime}</span>
@@ -363,15 +354,7 @@ Sustainable Acts of Kindness Platform`;
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      <span className={`text-xs font-medium px-2 py-1 rounded ${
-                        resource.type === 'external' 
-                          ? 'bg-blue-100 text-blue-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {resource.type === 'external' ? 'External Link' : 'PDF Download'}
-                      </span>
-
+                    <div className="flex justify-end">
                       {resource.type === 'external' ? (
                         <a
                           href={resource.url}
