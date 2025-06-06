@@ -202,7 +202,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
       console.log('Challenge created:', challengeData.id);
       
       // Wait for challenge to be ready with progressive backoff
-      await waitForChallengeReady(challengeData.id);
+     // await waitForChallengeReady(challengeData.id);
 
       setDebugInfo('Verifying your code...');
 
@@ -213,6 +213,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
           const { data: verifyData, error: verifyError } = await supabase.auth.mfa.verify({
+            System.out.println("Waiting for supabase");
             factorId,
             challengeId: challengeData.id,
             code: verificationCode.trim()
