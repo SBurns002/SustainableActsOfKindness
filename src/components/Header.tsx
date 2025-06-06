@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, LogIn, UserCircle, LogOut, User, Bell } from 'lucide-react';
+import { MapPin, LogIn, UserCircle, LogOut, User, Bell, TestTube } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
@@ -76,6 +76,11 @@ const Header: React.FC = () => {
               <li><Link to="/about" className="hover:text-emerald-200 transition-colors">About</Link></li>
               <li><Link to="/resources" className="hover:text-emerald-200 transition-colors">Resources</Link></li>
               <li><a href="#" className="hover:text-emerald-200 transition-colors">Contact</a></li>
+              {/* Add MFA Test link for debugging */}
+              <li><Link to="/mfa-test" className="hover:text-emerald-200 transition-colors flex items-center space-x-1">
+                <TestTube className="w-4 h-4" />
+                <span>MFA Test</span>
+              </Link></li>
             </ul>
           </nav>
 
@@ -104,6 +109,13 @@ const Header: React.FC = () => {
                   {hasUpcomingEvents && (
                     <div className="ml-auto w-2 h-2 bg-red-500 rounded-full"></div>
                   )}
+                </Link>
+                <Link
+                  to="/mfa-test"
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                >
+                  <TestTube className="h-4 w-4 mr-2" />
+                  MFA Test
                 </Link>
                 <button
                   onClick={handleSignOut}
