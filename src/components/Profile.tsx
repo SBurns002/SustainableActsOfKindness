@@ -198,6 +198,18 @@ const Profile: React.FC = () => {
   };
 
   const startMfaEnrollment = async () => {
+    // Check if there's already an existing factor with the same friendly name
+    const existingFactor = mfaFactors.find(factor => factor.friendly_name === 'Authenticator App');
+    
+    if (existingFactor) {
+      if (existingFactor.status === 'unverified') {
+        toast.error('You already have an unverified MFA setup. Please complete the existing setup or contact support to reset it.');
+      } else {
+        toast.error('MFA is already enabled for your account.');
+      }
+      return;
+    }
+
     setMfaLoading(true);
     try {
       const { data, error } = await supabase.auth.mfa.enroll({
