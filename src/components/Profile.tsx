@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { eventDataManager } from '../lib/eventDataManager';
-import { Calendar, Bell, Settings, Loader, Clock, CheckCircle, AlertCircle, UserMinus, Eye, Plus, Shield, Smartphone, Key } from 'lucide-react';
+import { Calendar, Bell, Settings, Loader, Clock, CheckCircle, AlertCircle, UserMinus, Eye, Plus, Shield, Smartphone, Key, User, MapPin, Edit, Save, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import MFASetup from './MFASetup';
 import MFADisable from './MFADisable';
@@ -34,6 +34,15 @@ interface MFAFactor {
   created_at: string;
 }
 
+interface UserProfile {
+  id: string;
+  user_id: string;
+  first_name: string | null;
+  zip_code: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 const Profile: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -46,6 +55,15 @@ const Profile: React.FC = () => {
   const [showMfaSetup, setShowMfaSetup] = useState(false);
   const [showMfaDisable, setShowMfaDisable] = useState(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  
+  // User profile state
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    first_name: '',
+    zip_code: ''
+  });
+  const [profileSaving, setProfileSaving] = useState(false);
 
   const getEventDetails = (eventId: string) => {
     // First try to get by UUID
@@ -83,6 +101,90 @@ const Profile: React.FC = () => {
       setMfaFactors(data?.totp || []);
     } catch (error) {
       console.error('Error fetching MFA factors:', error);
+    }
+  };
+
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+        console.error('Error fetching user profile:', error);
+        return;
+      }
+
+      if (profile) {
+        setUserProfile(profile);
+        setProfileForm({
+          first_name: profile.first_name || '',
+          zip_code: profile.zip_code || ''
+        });
+      } else {
+        // No profile exists yet
+        setUserProfile(null);
+        setProfileForm({
+          first_name: '',
+          zip_code: ''
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
+
+  const saveUserProfile = async () => {
+    if (!currentUser) return;
+
+    setProfileSaving(true);
+    try {
+      const profileData = {
+        user_id: currentUser.id,
+        first_name: profileForm.first_name.trim() || null,
+        zip_code: profileForm.zip_code.trim() || null
+      };
+
+      if (userProfile) {
+        // Update existing profile
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .update(profileData)
+          .eq('user_id', currentUser.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        setUserProfile(data);
+      } else {
+        // Create new profile
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .insert(profileData)
+          .select()
+          .single();
+
+        if (error) throw error;
+        setUserProfile(data);
+      }
+
+      setIsEditingProfile(false);
+      toast.success('Profile saved successfully!');
+
+      // If zip code was provided, redirect to map with that location
+      if (profileForm.zip_code.trim()) {
+        toast.success(`Redirecting to events in ${profileForm.zip_code}...`);
+        // Store zip code in localStorage for the map to use
+        localStorage.setItem('userZipCode', profileForm.zip_code.trim());
+        navigate('/');
+      }
+    } catch (error: any) {
+      console.error('Error saving profile:', error);
+      toast.error(`Failed to save profile: ${error.message}`);
+    } finally {
+      setProfileSaving(false);
     }
   };
 
@@ -171,6 +273,9 @@ const Profile: React.FC = () => {
         await new Promise(resolve => setTimeout(resolve, 300));
       }
 
+      // Fetch user profile
+      await fetchUserProfile(user.id);
+
       // Fetch participations with explicit user filter
       console.log('Fetching participations for user:', user.id);
       const { data: participationsData, error: participationsError } = await supabase
@@ -258,6 +363,7 @@ const Profile: React.FC = () => {
         setParticipations([]);
         setReminders([]);
         setMfaFactors([]);
+        setUserProfile(null);
         navigate('/auth');
       }
     });
@@ -566,6 +672,111 @@ const Profile: React.FC = () => {
         </div>
 
         <div className="space-y-8">
+          {/* Personal Information Section */}
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+              <User className="w-5 h-5 mr-2" />
+              Personal Information
+            </h2>
+            
+            <div className="bg-gray-50 rounded-lg p-6">
+              {!isEditingProfile ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                      <p className="text-gray-900 bg-white px-3 py-2 rounded border">
+                        {userProfile?.first_name || 'Not provided'}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Volunteer Location</label>
+                      <div className="flex items-center space-x-2">
+                        <MapPin className="w-4 h-4 text-gray-400" />
+                        <p className="text-gray-900 bg-white px-3 py-2 rounded border flex-1">
+                          {userProfile?.zip_code || 'Not provided'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => setIsEditingProfile(true)}
+                      className="flex items-center space-x-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors"
+                    >
+                      <Edit className="w-4 h-4" />
+                      <span>Edit Profile</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label htmlFor="first_name" className="block text-sm font-medium text-gray-700 mb-1">
+                        First Name
+                      </label>
+                      <input
+                        type="text"
+                        id="first_name"
+                        value={profileForm.first_name}
+                        onChange={(e) => setProfileForm(prev => ({ ...prev, first_name: e.target.value }))}
+                        placeholder="Enter your first name"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="zip_code" className="block text-sm font-medium text-gray-700 mb-1">
+                        Preferred Volunteer Location (Zip Code)
+                      </label>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <input
+                          type="text"
+                          id="zip_code"
+                          value={profileForm.zip_code}
+                          onChange={(e) => setProfileForm(prev => ({ ...prev, zip_code: e.target.value }))}
+                          placeholder="Enter zip code (e.g., 02101)"
+                          className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                          maxLength={10}
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        We'll show you events in this area when you visit the map
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end space-x-3">
+                    <button
+                      onClick={() => {
+                        setIsEditingProfile(false);
+                        setProfileForm({
+                          first_name: userProfile?.first_name || '',
+                          zip_code: userProfile?.zip_code || ''
+                        });
+                      }}
+                      className="flex items-center space-x-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                      disabled={profileSaving}
+                    >
+                      <X className="w-4 h-4" />
+                      <span>Cancel</span>
+                    </button>
+                    <button
+                      onClick={saveUserProfile}
+                      disabled={profileSaving}
+                      className="flex items-center space-x-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>{profileSaving ? 'Saving...' : 'Save'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Security Settings Section */}
           <div>
             <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
