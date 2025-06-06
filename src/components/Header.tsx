@@ -35,14 +35,14 @@ const Header: React.FC = () => {
       <div className="container mx-auto flex justify-between items-center">
         <Link to="/" className="flex items-center space-x-2">
           <MapPin className="h-6 w-6" />
-          <h1 className="text-xl font-bold text-center">Sustainable Acts of Kindness</h1>
+          <h1 className="text-xl font-bold">Sustainable Acts of Kindness</h1>
         </Link>
         
         <div className="flex items-center space-x-6">
           <nav className="hidden md:block">
             <ul className="flex space-x-6">
               <li><Link to="/" className="hover:text-emerald-200 transition-colors">Home</Link></li>
-              <li><a href="#" className="hover:text-emerald-200 transition-colors">About</a></li>
+              <li><Link to="/about" className="hover:text-emerald-200 transition-colors">About</Link></li>
               <li><a href="#" className="hover:text-emerald-200 transition-colors">Resources</a></li>
               <li><a href="#" className="hover:text-emerald-200 transition-colors">Contact</a></li>
             </ul>

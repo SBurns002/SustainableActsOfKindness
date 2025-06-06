@@ -52,7 +52,7 @@ const About: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 overflow-y-auto">
       {/* Hero Section */}
       <div className="bg-gradient-to-br from-emerald-600 via-emerald-700 to-emerald-800 text-white">
         <div className="max-w-7xl mx-auto px-6 py-20">
@@ -71,8 +71,9 @@ const About: React.FC = () => {
         </div>
       </div>
 
-      {/* Mission Section */}
+      {/* Scrollable Content Container */}
       <div className="max-w-7xl mx-auto px-6 py-16">
+        {/* Mission Section */}
         <div className="text-center mb-16">
           <h2 className="text-4xl font-bold text-gray-900 mb-6">Our Mission</h2>
           <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
@@ -147,7 +148,7 @@ const About: React.FC = () => {
         </div>
 
         {/* Call to Action */}
-        <div className="text-center bg-white rounded-2xl shadow-xl p-12">
+        <div className="text-center bg-white rounded-2xl shadow-xl p-12 mb-20">
           <h3 className="text-3xl font-bold text-gray-900 mb-6">Ready to Make a Difference?</h3>
           <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
             Join our community of environmental stewards and start making a positive impact in your area today.
@@ -168,32 +169,32 @@ const About: React.FC = () => {
             </Link>
           </div>
         </div>
-      </div>
 
-      {/* Values Section */}
-      <div className="bg-gray-900 text-white py-20">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h3 className="text-3xl font-bold mb-6">Our Values</h3>
-            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-              The principles that guide our mission and community
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <Target className="w-12 h-12 text-emerald-400 mx-auto mb-6" />
-              <h4 className="text-xl font-semibold mb-4">Purpose-Driven Action</h4>
-              <p className="text-gray-300">Every initiative we support has measurable environmental impact and community benefit.</p>
+        {/* Values Section */}
+        <div className="bg-gray-900 text-white py-20 rounded-2xl">
+          <div className="max-w-6xl mx-auto px-6">
+            <div className="text-center mb-16">
+              <h3 className="text-3xl font-bold mb-6">Our Values</h3>
+              <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+                The principles that guide our mission and community
+              </p>
             </div>
-            <div className="text-center">
-              <Users className="w-12 h-12 text-emerald-400 mx-auto mb-6" />
-              <h4 className="text-xl font-semibold mb-4">Inclusive Community</h4>
-              <p className="text-gray-300">We welcome everyone, regardless of experience level, to participate in environmental stewardship.</p>
-            </div>
-            <div className="text-center">
-              <Globe className="w-12 h-12 text-emerald-400 mx-auto mb-6" />
-              <h4 className="text-xl font-semibold mb-4">Global Thinking, Local Action</h4>
-              <p className="text-gray-300">We address global environmental challenges through coordinated local community action.</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="text-center">
+                <Target className="w-12 h-12 text-emerald-400 mx-auto mb-6" />
+                <h4 className="text-xl font-semibold mb-4">Purpose-Driven Action</h4>
+                <p className="text-gray-300">Every initiative we support has measurable environmental impact and community benefit.</p>
+              </div>
+              <div className="text-center">
+                <Users className="w-12 h-12 text-emerald-400 mx-auto mb-6" />
+                <h4 className="text-xl font-semibold mb-4">Inclusive Community</h4>
+                <p className="text-gray-300">We welcome everyone, regardless of experience level, to participate in environmental stewardship.</p>
+              </div>
+              <div className="text-center">
+                <Globe className="w-12 h-12 text-emerald-400 mx-auto mb-6" />
+                <h4 className="text-xl font-semibold mb-4">Global Thinking, Local Action</h4>
+                <p className="text-gray-300">We address global environmental challenges through coordinated local community action.</p>
+              </div>
             </div>
           </div>
         </div>
