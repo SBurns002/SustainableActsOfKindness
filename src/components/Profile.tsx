@@ -461,6 +461,7 @@ const Profile: React.FC = () => {
   };
 
   const isMfaEnabled = mfaFactors.some(factor => factor.status === 'verified');
+  const verifiedTotpFactor = mfaFactors.find(factor => factor.status === 'verified');
 
   if (loading) {
     return (
@@ -796,10 +797,11 @@ const Profile: React.FC = () => {
       )}
 
       {/* MFA Disable Modal */}
-      {showMfaDisable && (
+      {showMfaDisable && verifiedTotpFactor && (
         <MFADisable
           onSuccess={handleMfaDisableComplete}
           onCancel={() => setShowMfaDisable(false)}
+          totpFactorId={verifiedTotpFactor.id}
         />
       )}
     </div>

@@ -6,9 +6,10 @@ import toast from 'react-hot-toast';
 interface MFADisableProps {
   onSuccess: () => void;
   onCancel: () => void;
+  totpFactorId: string;
 }
 
-const MFADisable: React.FC<MFADisableProps> = ({ onSuccess, onCancel }) => {
+const MFADisable: React.FC<MFADisableProps> = ({ onSuccess, onCancel, totpFactorId }) => {
   const [verificationCode, setVerificationCode] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
@@ -23,7 +24,7 @@ const MFADisable: React.FC<MFADisableProps> = ({ onSuccess, onCancel }) => {
 
       // First verify the current code
       const { data: verifyData, error: verifyError } = await supabase.auth.mfa.verify({
-        factorId: 'totp',
+        factorId: totpFactorId,
         code: verificationCode
       });
 
@@ -31,7 +32,7 @@ const MFADisable: React.FC<MFADisableProps> = ({ onSuccess, onCancel }) => {
 
       // Then unenroll MFA
       const { error: unenrollError } = await supabase.auth.mfa.unenroll({
-        factorId: 'totp'
+        factorId: totpFactorId
       });
 
       if (unenrollError) throw unenrollError;
