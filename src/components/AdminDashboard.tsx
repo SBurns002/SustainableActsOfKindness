@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { eventDataManager } from '../lib/eventDataManager';
 import { 
   Plus, 
   Edit, 
@@ -233,12 +234,8 @@ const AdminDashboard: React.FC = () => {
       };
 
       if (editingEvent) {
-        const { error } = await supabase
-          .from('events')
-          .update(eventData)
-          .eq('id', editingEvent.id);
-
-        if (error) throw error;
+        // Update existing event using the event data manager
+        await eventDataManager.updateEvent(editingEvent.id, eventData);
         toast.success('Event updated successfully');
       } else {
         const { data: { user } } = await supabase.auth.getUser();
@@ -257,6 +254,9 @@ const AdminDashboard: React.FC = () => {
       setEditingEvent(null);
       resetForm();
       fetchEvents();
+      
+      // Refresh the event data manager to update all components
+      await eventDataManager.refresh();
     } catch (error) {
       console.error('Error saving event:', error);
       toast.error('Failed to save event');
@@ -297,6 +297,9 @@ const AdminDashboard: React.FC = () => {
       toast.success('Event deleted successfully');
       setDeleteConfirm(null);
       fetchEvents();
+      
+      // Refresh the event data manager
+      await eventDataManager.refresh();
     } catch (error) {
       console.error('Error deleting event:', error);
       toast.error('Failed to delete event');

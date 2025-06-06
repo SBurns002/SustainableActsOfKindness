@@ -3,9 +3,9 @@ import { MapContainer, TileLayer, GeoJSON, ZoomControl } from 'react-leaflet';
 import { useNavigate } from 'react-router-dom';
 import { Home, Info, BookOpen, Mail, LogIn, UserCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { eventDataManager } from '../lib/eventDataManager';
 import DateRangeFilter from './DateRangeFilter';
 import MapLegend from './MapLegend';
-import { cleanupData } from '../data/cleanupData';
 import { filterCleanupDataByDateRange, filterCleanupDataByEventType } from '../utils/filterUtils';
 import 'leaflet/dist/leaflet.css';
 
@@ -21,11 +21,21 @@ const MapView: React.FC = () => {
     endDate: null
   });
   const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>([]);
-  const [filteredData, setFilteredData] = useState(cleanupData);
+  const [filteredData, setFilteredData] = useState(eventDataManager.getMergedEventData());
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    let filtered = cleanupData;
+    // Listen for event data updates
+    const unsubscribe = eventDataManager.addListener(() => {
+      const mergedData = eventDataManager.getMergedEventData();
+      applyFilters(mergedData);
+    });
+
+    return unsubscribe;
+  }, [dateRange, selectedEventTypes]);
+
+  const applyFilters = (data: any) => {
+    let filtered = data;
 
     // Apply date range filter
     if (dateRange.startDate && dateRange.endDate) {
@@ -38,6 +48,11 @@ const MapView: React.FC = () => {
     }
 
     setFilteredData(filtered);
+  };
+
+  useEffect(() => {
+    const mergedData = eventDataManager.getMergedEventData();
+    applyFilters(mergedData);
   }, [dateRange, selectedEventTypes]);
 
   useEffect(() => {
@@ -214,7 +229,7 @@ const MapView: React.FC = () => {
           
           {filteredData.features.map((feature: any, index: number) => (
             <GeoJSON
-              key={`${feature.properties.name}-${index}`}
+              key={`${feature.properties.name}-${index}-${feature.properties.updated_at || 'static'}`}
               data={feature}
               style={getFeatureStyle}
               onEachFeature={onEachFeature}

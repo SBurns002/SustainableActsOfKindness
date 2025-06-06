@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { eventDataManager } from '../lib/eventDataManager';
 import { Calendar, Users, MapPin, AlertCircle, ArrowLeft, LogIn, UserMinus, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { cleanupData } from '../data/cleanupData';
 
 const EventDetails: React.FC = () => {
   const { id } = useParams();
@@ -70,13 +70,19 @@ const EventDetails: React.FC = () => {
   };
 
   useEffect(() => {
-    // Find the event in the cleanupData
-    const eventData = cleanupData.features.find(
-      feature => feature.properties.name === decodeURIComponent(id || '')
-    );
+    // Find the event using the event data manager (which includes admin updates)
+    const eventData = eventDataManager.getEventByName(decodeURIComponent(id || ''));
     setEvent(eventData);
 
     fetchEventDetails();
+
+    // Listen for event data updates
+    const unsubscribe = eventDataManager.addListener(() => {
+      const updatedEventData = eventDataManager.getEventByName(decodeURIComponent(id || ''));
+      setEvent(updatedEventData);
+    });
+
+    return unsubscribe;
   }, [id]);
 
   // Listen for auth state changes
@@ -354,7 +360,10 @@ const EventDetails: React.FC = () => {
               
               <div className="flex items-center">
                 <Users className="w-5 h-5 text-emerald-600 mr-3" />
-                <span>{participantCount} participants</span>
+                <span>
+                  {participantCount} participants
+                  {event.properties.max_participants && ` / ${event.properties.max_participants} max`}
+                </span>
               </div>
             </div>
 
@@ -403,17 +412,39 @@ const EventDetails: React.FC = () => {
 
           <div>
             <h3 className="text-lg font-semibold mb-4">Requirements</h3>
-            <ul className="list-disc list-inside space-y-2 text-gray-600">
-              <li>Wear appropriate clothing for outdoor work</li>
-              <li>Bring water and snacks</li>
-              <li>Sunscreen and hat recommended</li>
-              <li>Tools will be provided</li>
-            </ul>
+            {event.properties.requirements && event.properties.requirements.length > 0 ? (
+              <ul className="list-disc list-inside space-y-2 text-gray-600">
+                {event.properties.requirements.map((req: string, index: number) => (
+                  <li key={index}>{req}</li>
+                ))}
+              </ul>
+            ) : (
+              <ul className="list-disc list-inside space-y-2 text-gray-600">
+                <li>Wear appropriate clothing for outdoor work</li>
+                <li>Bring water and snacks</li>
+                <li>Sunscreen and hat recommended</li>
+                <li>Tools will be provided</li>
+              </ul>
+            )}
+
+            {event.properties.what_to_bring && event.properties.what_to_bring.length > 0 && (
+              <div className="mt-8">
+                <h3 className="text-lg font-semibold mb-4">What to Bring</h3>
+                <ul className="list-disc list-inside space-y-2 text-gray-600">
+                  {event.properties.what_to_bring.map((item: string, index: number) => (
+                    <li key={index}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <div className="mt-8">
               <h3 className="text-lg font-semibold mb-4">Organizer</h3>
               <div className="bg-gray-50 p-4 rounded-lg">
-                <h4 className="font-medium">Environmental Protection Group</h4>
+                <h4 className="font-medium">{event.properties.organizer_name || 'Environmental Protection Group'}</h4>
+                {event.properties.organizer_contact && (
+                  <p className="text-gray-600 mt-1">{event.properties.organizer_contact}</p>
+                )}
                 <p className="text-gray-600 mt-2">
                   Local organization dedicated to environmental conservation and community engagement.
                 </p>

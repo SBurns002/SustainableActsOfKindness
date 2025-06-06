@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { eventDataManager } from '../lib/eventDataManager';
 import { Calendar, Bell, Settings, Loader, Clock, CheckCircle, AlertCircle, UserMinus, Eye, Plus, Shield, Smartphone, Key } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { cleanupData } from '../data/cleanupData';
 import MFASetup from './MFASetup';
 import MFADisable from './MFADisable';
 
@@ -48,9 +48,8 @@ const Profile: React.FC = () => {
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   const getEventDetails = (eventId: string) => {
-    return cleanupData.features.find(
-      feature => feature.properties.name === eventId
-    );
+    // Use the event data manager to get updated event details
+    return eventDataManager.getEventByName(eventId);
   };
 
   const getDaysUntilEvent = (eventDate: string) => {
@@ -88,7 +87,7 @@ const Profile: React.FC = () => {
         const existingReminder = reminders.find(r => r.event_id === participation.event_id);
         if (existingReminder) continue;
 
-        // Get event details
+        // Get event details using the event data manager
         const eventDetails = getEventDetails(participation.event_id);
         if (!eventDetails) continue;
 
@@ -212,6 +211,18 @@ const Profile: React.FC = () => {
     console.log('Profile component mounted, fetching initial data');
     fetchUserData();
   }, []); // Empty dependency array - only run once
+
+  // Listen for event data updates
+  useEffect(() => {
+    const unsubscribe = eventDataManager.addListener(() => {
+      // Refresh user data when events are updated
+      if (initialLoadComplete && currentUser) {
+        fetchUserData(true);
+      }
+    });
+
+    return unsubscribe;
+  }, [initialLoadComplete, currentUser]);
 
   // Listen for auth state changes and refresh data
   useEffect(() => {
