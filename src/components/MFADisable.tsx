@@ -22,17 +22,10 @@ const MFADisable: React.FC<MFADisableProps> = ({ onSuccess, onCancel, totpFactor
     try {
       setLoading(true);
 
-      // First verify the current code
-      const { data: verifyData, error: verifyError } = await supabase.auth.mfa.verify({
+      // Unenroll MFA with verification code
+      const { error: unenrollError } = await supabase.auth.mfa.unenroll({
         factorId: totpFactorId,
         code: verificationCode
-      });
-
-      if (verifyError) throw verifyError;
-
-      // Then unenroll MFA
-      const { error: unenrollError } = await supabase.auth.mfa.unenroll({
-        factorId: totpFactorId
       });
 
       if (unenrollError) throw unenrollError;
