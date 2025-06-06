@@ -53,7 +53,8 @@ const Profile: React.FC = () => {
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [showBackupCodes, setShowBackupCodes] = useState(false);
-  const [verificationStatus, setVerificationStatus] = useState<'idle' | 'verifying' | 'success' | 'error'>('idle');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationSuccess, setVerificationSuccess] = useState(false);
 
   const getEventDetails = (eventId: string) => {
     return cleanupData.features.find(
@@ -263,7 +264,8 @@ const Profile: React.FC = () => {
 
       setChallengeId(challengeData.id);
       setShowMfaSetup(true);
-      setVerificationStatus('idle');
+      setIsVerifying(false);
+      setVerificationSuccess(false);
       
     } catch (error) {
       console.error('Error starting MFA enrollment:', error);
@@ -279,7 +281,9 @@ const Profile: React.FC = () => {
       return;
     }
 
-    setVerificationStatus('verifying');
+    console.log('Starting MFA verification...');
+    setIsVerifying(true);
+    setVerificationSuccess(false);
     
     try {
       console.log('Attempting MFA verification with:', {
@@ -296,7 +300,7 @@ const Profile: React.FC = () => {
 
       if (error) {
         console.error('MFA verification error:', error);
-        setVerificationStatus('error');
+        setIsVerifying(false);
         
         // Provide more specific error messages
         if (error.message?.includes('invalid_code') || error.message?.includes('Invalid')) {
@@ -308,16 +312,14 @@ const Profile: React.FC = () => {
         } else {
           toast.error(`Verification failed: ${error.message}`);
         }
-        
-        // Reset verification status after a delay
-        setTimeout(() => setVerificationStatus('idle'), 2000);
         return;
       }
 
       console.log('MFA verification successful:', data);
       
-      // Set success status immediately
-      setVerificationStatus('success');
+      // Set success state immediately
+      setIsVerifying(false);
+      setVerificationSuccess(true);
 
       // Generate backup codes (simulated for demo)
       const codes = Array.from({ length: 10 }, () => 
@@ -328,8 +330,11 @@ const Profile: React.FC = () => {
       // Show success message immediately
       toast.success('MFA successfully enabled!');
       
+      console.log('Showing success state for 2 seconds...');
+      
       // Wait to show success state, then proceed
       setTimeout(async () => {
+        console.log('Success timeout completed, proceeding to backup codes...');
         try {
           // Force refresh MFA factors first
           await fetchMfaFactors();
@@ -346,15 +351,13 @@ const Profile: React.FC = () => {
           resetMfaSetup();
           setShowBackupCodes(true);
         }
-      }, 1500);
+      }, 2000); // Increased to 2 seconds for better visibility
       
     } catch (error) {
       console.error('Error verifying MFA:', error);
-      setVerificationStatus('error');
+      setIsVerifying(false);
+      setVerificationSuccess(false);
       toast.error('Failed to verify MFA setup. Please try again.');
-      
-      // Reset verification status after a delay
-      setTimeout(() => setVerificationStatus('idle'), 2000);
     }
   };
 
@@ -423,10 +426,6 @@ const Profile: React.FC = () => {
     const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
     if (value.length <= 6) {
       setVerificationCode(value);
-      // Reset verification status when user types
-      if (verificationStatus === 'error') {
-        setVerificationStatus('idle');
-      }
     }
   };
 
@@ -438,7 +437,8 @@ const Profile: React.FC = () => {
     setVerificationCode('');
     setEnrollmentId(null);
     setChallengeId(null);
-    setVerificationStatus('idle');
+    setIsVerifying(false);
+    setVerificationSuccess(false);
   };
 
   useEffect(() => {
@@ -693,40 +693,35 @@ const Profile: React.FC = () => {
   const hasMfaEnabled = mfaFactors.length > 0 && mfaFactors.some(f => f.status === 'verified');
 
   // Check if verification button should be enabled
-  const isVerificationButtonEnabled = verificationCode.length === 6 && /^\d{6}$/.test(verificationCode) && verificationStatus !== 'verifying' && verificationStatus !== 'success';
+  const isVerificationButtonEnabled = verificationCode.length === 6 && /^\d{6}$/.test(verificationCode) && !isVerifying && !verificationSuccess;
 
   // Get button text and styling based on verification status
   const getVerificationButtonProps = () => {
-    switch (verificationStatus) {
-      case 'verifying':
-        return {
-          text: 'Verifying...',
-          className: 'flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg cursor-not-allowed flex items-center justify-center',
-          disabled: true
-        };
-      case 'success':
-        return {
-          text: '✓ Success!',
-          className: 'flex-1 px-4 py-2 bg-green-500 text-white rounded-lg cursor-not-allowed flex items-center justify-center',
-          disabled: true
-        };
-      case 'error':
-        return {
-          text: 'Try Again',
-          className: 'flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center justify-center',
-          disabled: false
-        };
-      default:
-        return {
-          text: 'Verify & Enable',
-          className: `flex-1 px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center ${
-            isVerificationButtonEnabled
-              ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`,
-          disabled: !isVerificationButtonEnabled
-        };
+    if (verificationSuccess) {
+      return {
+        text: '✓ Success!',
+        className: 'flex-1 px-4 py-2 bg-green-500 text-white rounded-lg cursor-not-allowed flex items-center justify-center',
+        disabled: true
+      };
     }
+    
+    if (isVerifying) {
+      return {
+        text: 'Verifying...',
+        className: 'flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg cursor-not-allowed flex items-center justify-center',
+        disabled: true
+      };
+    }
+    
+    return {
+      text: 'Verify & Enable',
+      className: `flex-1 px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center ${
+        isVerificationButtonEnabled
+          ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+      }`,
+      disabled: !isVerificationButtonEnabled
+    };
   };
 
   const buttonProps = getVerificationButtonProps();
@@ -1110,26 +1105,19 @@ const Profile: React.FC = () => {
                   value={verificationCode}
                   onChange={handleVerificationCodeChange}
                   placeholder="000000"
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-center text-lg font-mono ${
-                    verificationStatus === 'error' ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                  }`}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-center text-lg font-mono"
                   maxLength={6}
                   autoComplete="off"
                 />
                 <p className="text-xs text-gray-500 mt-1 text-center">
                   Enter the 6-digit code from your authenticator app
                 </p>
-                {verificationStatus === 'error' && (
-                  <p className="text-xs text-red-600 mt-1 text-center">
-                    Please check your code and try again
-                  </p>
-                )}
               </div>
 
               <div className="flex space-x-3">
                 <button
                   onClick={resetMfaSetup}
-                  disabled={verificationStatus === 'verifying' || verificationStatus === 'success'}
+                  disabled={isVerifying || verificationSuccess}
                   className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
@@ -1139,7 +1127,7 @@ const Profile: React.FC = () => {
                   disabled={buttonProps.disabled}
                   className={buttonProps.className}
                 >
-                  {verificationStatus === 'verifying' && (
+                  {isVerifying && (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                   )}
                   {buttonProps.text}
