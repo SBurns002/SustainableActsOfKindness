@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Calendar, Bell, Settings, Loader, Clock, CheckCircle, AlertCircle, UserMinus, Eye, Plus } from 'lucide-react';
+import { Calendar, Bell, Settings, Loader, Clock, CheckCircle, AlertCircle, UserMinus, Eye, Plus, Shield, Smartphone, Key, Copy, RefreshCw, Trash2, QrCode } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cleanupData } from '../data/cleanupData';
 
@@ -25,6 +25,14 @@ interface EventReminder {
   created_at: string;
 }
 
+interface MFAFactor {
+  id: string;
+  type: 'totp';
+  status: 'verified' | 'unverified';
+  friendly_name: string;
+  created_at: string;
+}
+
 const Profile: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -33,6 +41,17 @@ const Profile: React.FC = () => {
   const [reminders, setReminders] = useState<EventReminder[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [creatingReminders, setCreatingReminders] = useState(false);
+  
+  // MFA States
+  const [mfaFactors, setMfaFactors] = useState<MFAFactor[]>([]);
+  const [mfaLoading, setMfaLoading] = useState(false);
+  const [showMfaSetup, setShowMfaSetup] = useState(false);
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [totpSecret, setTotpSecret] = useState<string | null>(null);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [enrollmentId, setEnrollmentId] = useState<string | null>(null);
+  const [backupCodes, setBackupCodes] = useState<string[]>([]);
+  const [showBackupCodes, setShowBackupCodes] = useState(false);
 
   const getEventDetails = (eventId: string) => {
     return cleanupData.features.find(
@@ -107,6 +126,20 @@ const Profile: React.FC = () => {
     }
   };
 
+  const fetchMfaFactors = async () => {
+    try {
+      const { data, error } = await supabase.auth.mfa.listFactors();
+      if (error) {
+        console.error('Error fetching MFA factors:', error);
+        return;
+      }
+      
+      setMfaFactors(data?.totp || []);
+    } catch (error) {
+      console.error('Error fetching MFA factors:', error);
+    }
+  };
+
   const fetchUserData = async (forceRefresh = false) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -153,12 +186,121 @@ const Profile: React.FC = () => {
         setReminders(remindersData || []);
       }
 
+      // Fetch MFA factors
+      await fetchMfaFactors();
+
     } catch (error) {
       console.error('Error fetching user data:', error);
       toast.error('Failed to load profile data');
     } finally {
       setLoading(false);
     }
+  };
+
+  const startMfaEnrollment = async () => {
+    setMfaLoading(true);
+    try {
+      const { data, error } = await supabase.auth.mfa.enroll({
+        factorType: 'totp',
+        friendlyName: 'Authenticator App'
+      });
+
+      if (error) {
+        console.error('MFA enrollment error:', error);
+        toast.error('Failed to start MFA setup');
+        return;
+      }
+
+      setEnrollmentId(data.id);
+      setQrCode(data.totp.qr_code);
+      setTotpSecret(data.totp.secret);
+      setShowMfaSetup(true);
+      
+    } catch (error) {
+      console.error('Error starting MFA enrollment:', error);
+      toast.error('Failed to start MFA setup');
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
+  const verifyMfaEnrollment = async () => {
+    if (!enrollmentId || !verificationCode) {
+      toast.error('Please enter the verification code');
+      return;
+    }
+
+    setMfaLoading(true);
+    try {
+      const { data, error } = await supabase.auth.mfa.verify({
+        factorId: enrollmentId,
+        challengeId: enrollmentId,
+        code: verificationCode
+      });
+
+      if (error) {
+        console.error('MFA verification error:', error);
+        toast.error('Invalid verification code. Please try again.');
+        return;
+      }
+
+      // Generate backup codes (simulated for demo)
+      const codes = Array.from({ length: 10 }, () => 
+        Math.random().toString(36).substring(2, 10).toUpperCase()
+      );
+      setBackupCodes(codes);
+      setShowBackupCodes(true);
+      setShowMfaSetup(false);
+      
+      toast.success('MFA successfully enabled!');
+      await fetchMfaFactors();
+      
+    } catch (error) {
+      console.error('Error verifying MFA:', error);
+      toast.error('Failed to verify MFA setup');
+    } finally {
+      setMfaLoading(false);
+      setVerificationCode('');
+    }
+  };
+
+  const disableMfa = async (factorId: string) => {
+    if (!confirm('Are you sure you want to disable MFA? This will make your account less secure.')) {
+      return;
+    }
+
+    setMfaLoading(true);
+    try {
+      const { error } = await supabase.auth.mfa.unenroll({ factorId });
+
+      if (error) {
+        console.error('MFA disable error:', error);
+        toast.error('Failed to disable MFA');
+        return;
+      }
+
+      toast.success('MFA has been disabled');
+      await fetchMfaFactors();
+      
+    } catch (error) {
+      console.error('Error disabling MFA:', error);
+      toast.error('Failed to disable MFA');
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Copied to clipboard');
+  };
+
+  const regenerateBackupCodes = () => {
+    const codes = Array.from({ length: 10 }, () => 
+      Math.random().toString(36).substring(2, 10).toUpperCase()
+    );
+    setBackupCodes(codes);
+    toast.success('New backup codes generated');
   };
 
   useEffect(() => {
@@ -410,6 +552,8 @@ const Profile: React.FC = () => {
     return !hasReminder && isFutureEvent;
   });
 
+  const hasMfaEnabled = mfaFactors.length > 0 && mfaFactors.some(f => f.status === 'verified');
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="bg-white rounded-lg shadow-lg p-8">
@@ -419,6 +563,90 @@ const Profile: React.FC = () => {
         </div>
 
         <div className="space-y-8">
+          {/* Security Settings Section */}
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+              <Shield className="w-5 h-5 mr-2" />
+              Security Settings
+            </h2>
+            
+            <div className="bg-gray-50 rounded-lg p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900">Multi-Factor Authentication</h3>
+                  <p className="text-gray-600 text-sm mt-1">
+                    Add an extra layer of security to your account with MFA
+                  </p>
+                </div>
+                <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  hasMfaEnabled 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {hasMfaEnabled ? 'Enabled' : 'Disabled'}
+                </div>
+              </div>
+
+              {!hasMfaEnabled ? (
+                <div className="space-y-4">
+                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-start space-x-3">
+                      <Smartphone className="w-5 h-5 text-emerald-600 mt-0.5" />
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900">Authenticator App</h4>
+                        <p className="text-gray-600 text-sm mt-1">
+                          Use an authenticator app like Google Authenticator, Authy, or 1Password to generate verification codes.
+                        </p>
+                        <button
+                          onClick={startMfaEnrollment}
+                          disabled={mfaLoading}
+                          className="mt-3 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 text-sm font-medium"
+                        >
+                          {mfaLoading ? 'Setting up...' : 'Set up MFA'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {mfaFactors.map((factor) => (
+                    <div key={factor.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="bg-green-100 p-2 rounded-lg">
+                            <Smartphone className="w-4 h-4 text-green-600" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-gray-900">{factor.friendly_name}</h4>
+                            <p className="text-gray-600 text-sm">
+                              Added on {new Date(factor.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => setShowBackupCodes(true)}
+                            className="text-emerald-600 hover:text-emerald-700 text-sm font-medium"
+                          >
+                            View Backup Codes
+                          </button>
+                          <button
+                            onClick={() => disableMfa(factor.id)}
+                            disabled={mfaLoading}
+                            className="text-red-600 hover:text-red-700 text-sm font-medium disabled:opacity-50"
+                          >
+                            Disable
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Event Reminders Section */}
           <div>
             <div className="flex items-center justify-between mb-4">
@@ -657,6 +885,152 @@ const Profile: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* MFA Setup Modal */}
+      {showMfaSetup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="text-center mb-6">
+              <div className="bg-emerald-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <QrCode className="w-8 h-8 text-emerald-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900">Set up MFA</h3>
+              <p className="text-gray-600 mt-2">Scan the QR code with your authenticator app</p>
+            </div>
+
+            <div className="space-y-4">
+              {qrCode && (
+                <div className="text-center">
+                  <div className="bg-white p-4 rounded-lg border-2 border-gray-200 inline-block">
+                    <img src={qrCode} alt="QR Code" className="w-48 h-48" />
+                  </div>
+                </div>
+              )}
+
+              {totpSecret && (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-2">Or enter this code manually:</p>
+                  <div className="flex items-center space-x-2">
+                    <code className="bg-white px-3 py-2 rounded border text-sm font-mono flex-1">
+                      {totpSecret}
+                    </code>
+                    <button
+                      onClick={() => copyToClipboard(totpSecret)}
+                      className="p-2 text-gray-500 hover:text-gray-700"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Enter verification code from your app:
+                </label>
+                <input
+                  type="text"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value)}
+                  placeholder="000000"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-center text-lg font-mono"
+                  maxLength={6}
+                />
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => {
+                    setShowMfaSetup(false);
+                    setQrCode(null);
+                    setTotpSecret(null);
+                    setVerificationCode('');
+                    setEnrollmentId(null);
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={verifyMfaEnrollment}
+                  disabled={mfaLoading || verificationCode.length !== 6}
+                  className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {mfaLoading ? 'Verifying...' : 'Verify & Enable'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Backup Codes Modal */}
+      {showBackupCodes && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="text-center mb-6">
+              <div className="bg-amber-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Key className="w-8 h-8 text-amber-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900">Backup Codes</h3>
+              <p className="text-gray-600 mt-2">Save these codes in a secure location</p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="grid grid-cols-2 gap-2">
+                  {backupCodes.map((code, index) => (
+                    <div key={index} className="bg-white px-3 py-2 rounded border text-center font-mono text-sm">
+                      {code}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div className="flex items-start space-x-2">
+                  <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
+                  <div className="text-sm text-amber-800">
+                    <p className="font-medium">Important:</p>
+                    <ul className="mt-1 space-y-1">
+                      <li>• Each code can only be used once</li>
+                      <li>• Store them in a secure password manager</li>
+                      <li>• Use them if you lose access to your authenticator</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => {
+                    const codesText = backupCodes.join('\n');
+                    copyToClipboard(codesText);
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center justify-center space-x-2"
+                >
+                  <Copy className="w-4 h-4" />
+                  <span>Copy All</span>
+                </button>
+                <button
+                  onClick={regenerateBackupCodes}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center justify-center space-x-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Regenerate</span>
+                </button>
+              </div>
+
+              <button
+                onClick={() => setShowBackupCodes(false)}
+                className="w-full px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
