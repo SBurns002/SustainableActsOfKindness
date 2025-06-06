@@ -26,6 +26,7 @@ class EventDataManager {
   private static instance: EventDataManager;
   private eventUpdates: Map<string, EventUpdate> = new Map(); // Key by original name
   private eventsByTitle: Map<string, EventUpdate> = new Map(); // Key by current title
+  private eventsById: Map<string, EventUpdate> = new Map(); // Key by UUID
   private listeners: Set<() => void> = new Set();
 
   private constructor() {
@@ -55,6 +56,7 @@ class EventDataManager {
       // Clear existing maps
       this.eventUpdates.clear();
       this.eventsByTitle.clear();
+      this.eventsById.clear();
 
       // Store updates in memory for quick access
       events?.forEach(event => {
@@ -93,11 +95,82 @@ class EventDataManager {
         this.eventUpdates.set(originalName, eventUpdate);
         // Also store by current title for lookups
         this.eventsByTitle.set(event.title, eventUpdate);
+        // Store by UUID for database operations
+        this.eventsById.set(event.id, eventUpdate);
       });
 
       this.notifyListeners();
     } catch (error) {
       console.error('Error loading event updates:', error);
+    }
+  }
+
+  // Create an event in the database if it doesn't exist
+  async ensureEventExists(eventName: string): Promise<string | null> {
+    try {
+      // First check if event already exists in database
+      const { data: existingEvent } = await supabase
+        .from('events')
+        .select('id')
+        .eq('title', eventName)
+        .maybeSingle();
+
+      if (existingEvent) {
+        return existingEvent.id;
+      }
+
+      // Find the event in static data
+      const staticEvent = cleanupData.features.find(feature => 
+        feature.properties.name === eventName
+      );
+
+      if (!staticEvent) {
+        console.error('Event not found in static data:', eventName);
+        return null;
+      }
+
+      // Get current user for created_by field
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('No authenticated user found');
+        return null;
+      }
+
+      // Create the event in the database
+      const { data: newEvent, error } = await supabase
+        .from('events')
+        .insert({
+          title: staticEvent.properties.name,
+          description: staticEvent.properties.description,
+          event_type: staticEvent.properties.eventType,
+          event_date: staticEvent.properties.date,
+          start_time: staticEvent.properties.time?.split(' - ')[0],
+          end_time: staticEvent.properties.time?.split(' - ')[1],
+          location: staticEvent.properties.location,
+          address: staticEvent.properties.address,
+          max_participants: staticEvent.properties.max_participants,
+          requirements: staticEvent.properties.requirements,
+          what_to_bring: staticEvent.properties.what_to_bring,
+          organizer_name: staticEvent.properties.organizer_name || 'Environmental Protection Group',
+          organizer_contact: staticEvent.properties.organizer_contact,
+          status: 'active',
+          created_by: user.id
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        console.error('Error creating event:', error);
+        return null;
+      }
+
+      // Refresh our cache
+      await this.loadEventUpdates();
+
+      return newEvent.id;
+    } catch (error) {
+      console.error('Error ensuring event exists:', error);
+      return null;
     }
   }
 
@@ -115,6 +188,7 @@ class EventDataManager {
           ...feature,
           properties: {
             ...feature.properties,
+            id: update.id, // Include the database UUID
             name: update.title, // Use updated title
             description: update.description,
             type: this.getEventTypeLabel(update.event_type),
@@ -150,6 +224,11 @@ class EventDataManager {
       feature.properties.name === eventName || 
       feature.properties.original_name === eventName
     );
+  }
+
+  // Get event by UUID
+  getEventById(eventId: string) {
+    return this.eventsById.get(eventId);
   }
 
   // Get event by current title
@@ -226,9 +305,10 @@ class EventDataManager {
         this.eventsByTitle.delete(existingEvent.title);
       }
 
-      // Update both maps
+      // Update all maps
       this.eventUpdates.set(originalName, eventUpdate);
       this.eventsByTitle.set(data.title, eventUpdate);
+      this.eventsById.set(data.id, eventUpdate);
 
       // Notify all listeners about the update
       this.notifyListeners();
@@ -272,7 +352,8 @@ class EventDataManager {
   getAllEvents() {
     return {
       byOriginalName: Array.from(this.eventUpdates.entries()),
-      byCurrentTitle: Array.from(this.eventsByTitle.entries())
+      byCurrentTitle: Array.from(this.eventsByTitle.entries()),
+      byId: Array.from(this.eventsById.entries())
     };
   }
 }

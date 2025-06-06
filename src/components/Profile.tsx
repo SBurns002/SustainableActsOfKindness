@@ -48,7 +48,18 @@ const Profile: React.FC = () => {
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   const getEventDetails = (eventId: string) => {
-    // Use the event data manager to get updated event details
+    // First try to get by UUID
+    const eventByUuid = eventDataManager.getEventById(eventId);
+    if (eventByUuid) {
+      // Find the corresponding static event data
+      const mergedData = eventDataManager.getMergedEventData();
+      const staticEvent = mergedData.features.find(feature => 
+        feature.properties.id === eventId
+      );
+      return staticEvent;
+    }
+    
+    // Fallback to name-based lookup for legacy data
     return eventDataManager.getEventByName(eventId);
   };
 
@@ -102,7 +113,7 @@ const Profile: React.FC = () => {
             .from('event_reminders')
             .upsert({
               user_id: currentUser.id,
-              event_id: participation.event_id,
+              event_id: participation.event_id, // This should now be a UUID
               event_name: eventDetails.properties.name,
               event_date: eventDate.toISOString(),
               reminder_date: reminderDate.toISOString(),
@@ -424,7 +435,7 @@ const Profile: React.FC = () => {
         throw new Error(`Failed to remove participation: ${participationError.message}`);
       }
 
-      // Remove associated reminders (now only one will exist due to unique constraint)
+      // Remove associated reminders
       const { error: reminderError } = await supabase
         .from('event_reminders')
         .delete()
@@ -769,6 +780,9 @@ const Profile: React.FC = () => {
                   const eventStatus = eventDetails ? getEventStatus(eventDetails.properties.date) : null;
                   const StatusIcon = eventStatus?.icon || Calendar;
                   
+                  // For display purposes, try to get the event name from details, fallback to event_id
+                  const displayName = eventDetails?.properties?.name || participation.event_id;
+                  
                   return (
                     <div
                       key={participation.id}
@@ -776,7 +790,7 @@ const Profile: React.FC = () => {
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <h3 className="font-medium text-gray-900">{participation.event_id}</h3>
+                          <h3 className="font-medium text-gray-900">{displayName}</h3>
                           <div className="flex items-center space-x-4 text-sm text-gray-500 mt-1">
                             <span>Joined on {new Date(participation.created_at).toLocaleDateString()}</span>
                             {eventDetails && (
@@ -808,14 +822,14 @@ const Profile: React.FC = () => {
                             </label>
                           </div>
                           <button
-                            onClick={() => navigate(`/event/${encodeURIComponent(participation.event_id)}`)}
+                            onClick={() => navigate(`/event/${encodeURIComponent(displayName)}`)}
                             className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center space-x-1"
                           >
                             <Eye className="w-4 h-4" />
                             <span>View</span>
                           </button>
                           <button
-                            onClick={() => handleLeaveEvent(participation.event_id, participation.event_id)}
+                            onClick={() => handleLeaveEvent(participation.event_id, displayName)}
                             className="text-red-600 hover:text-red-700 text-sm font-medium flex items-center space-x-1"
                           >
                             <UserMinus className="w-4 h-4" />
