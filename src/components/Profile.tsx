@@ -317,7 +317,7 @@ const Profile: React.FC = () => {
 
       console.log('MFA verification successful:', data);
       
-      // Set success state immediately
+      // Set success state immediately and keep it visible
       setIsVerifying(false);
       setVerificationSuccess(true);
 
@@ -330,9 +330,9 @@ const Profile: React.FC = () => {
       // Show success message immediately
       toast.success('MFA successfully enabled!');
       
-      console.log('Showing success state for 2 seconds...');
+      console.log('Showing success state for 3 seconds...');
       
-      // Wait to show success state, then proceed
+      // Keep success state visible for 3 seconds before proceeding
       setTimeout(async () => {
         console.log('Success timeout completed, proceeding to backup codes...');
         try {
@@ -351,7 +351,7 @@ const Profile: React.FC = () => {
           resetMfaSetup();
           setShowBackupCodes(true);
         }
-      }, 2000); // Increased to 2 seconds for better visibility
+      }, 3000); // Increased to 3 seconds for better visibility
       
     } catch (error) {
       console.error('Error verifying MFA:', error);
@@ -699,8 +699,8 @@ const Profile: React.FC = () => {
   const getVerificationButtonProps = () => {
     if (verificationSuccess) {
       return {
-        text: '✓ Success!',
-        className: 'flex-1 px-4 py-2 bg-green-500 text-white rounded-lg cursor-not-allowed flex items-center justify-center',
+        text: '✓ MFA Enabled Successfully!',
+        className: 'flex-1 px-4 py-2 bg-green-500 text-white rounded-lg cursor-not-allowed flex items-center justify-center font-medium',
         disabled: true
       };
     }
