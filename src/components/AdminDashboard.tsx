@@ -29,7 +29,6 @@ interface Event {
   id: string;
   title: string;
   description: string;
-  category_id: string;
   event_type: string;
   event_date: string;
   start_time?: string;
@@ -48,19 +47,6 @@ interface Event {
   created_by: string;
   created_at: string;
   updated_at: string;
-  event_categories?: {
-    name: string;
-    color: string;
-    icon: string;
-  };
-}
-
-interface EventCategory {
-  id: string;
-  name: string;
-  description: string;
-  color: string;
-  icon: string;
 }
 
 interface AdminUser {
@@ -73,7 +59,6 @@ interface AdminUser {
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [events, setEvents] = useState<Event[]>([]);
-  const [categories, setCategories] = useState<EventCategory[]>([]);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -84,7 +69,7 @@ const AdminDashboard: React.FC = () => {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [eventTypeFilter, setEventTypeFilter] = useState('all');
   const [newAdminEmail, setNewAdminEmail] = useState('');
   const [userManagementLoading, setUserManagementLoading] = useState(false);
 
@@ -92,7 +77,6 @@ const AdminDashboard: React.FC = () => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    category_id: '',
     event_type: 'cleanup',
     event_date: '',
     start_time: '',
@@ -115,7 +99,6 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     if (isAdmin) {
       fetchEvents();
-      fetchCategories();
       fetchAdminUsers();
     }
   }, [isAdmin]);
@@ -155,14 +138,7 @@ const AdminDashboard: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('events')
-        .select(`
-          *,
-          event_categories (
-            name,
-            color,
-            icon
-          )
-        `)
+        .select('*')
         .order('event_date', { ascending: true });
 
       if (error) throw error;
@@ -170,21 +146,6 @@ const AdminDashboard: React.FC = () => {
     } catch (error) {
       console.error('Error fetching events:', error);
       toast.error('Failed to load events');
-    }
-  };
-
-  const fetchCategories = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('event_categories')
-        .select('*')
-        .order('name');
-
-      if (error) throw error;
-      setCategories(data || []);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      toast.error('Failed to load categories');
     }
   };
 
@@ -307,7 +268,6 @@ const AdminDashboard: React.FC = () => {
     setFormData({
       title: event.title,
       description: event.description,
-      category_id: event.category_id,
       event_type: event.event_type,
       event_date: new Date(event.event_date).toISOString().split('T')[0],
       start_time: event.start_time || '',
@@ -347,7 +307,6 @@ const AdminDashboard: React.FC = () => {
     setFormData({
       title: '',
       description: '',
-      category_id: '',
       event_type: 'cleanup',
       event_date: '',
       start_time: '',
@@ -391,9 +350,9 @@ const AdminDashboard: React.FC = () => {
                          event.location.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || event.status === statusFilter;
-    const matchesCategory = categoryFilter === 'all' || event.category_id === categoryFilter;
+    const matchesEventType = eventTypeFilter === 'all' || event.event_type === eventTypeFilter;
     
-    return matchesSearch && matchesStatus && matchesCategory;
+    return matchesSearch && matchesStatus && matchesEventType;
   });
 
   const getStatusColor = (status: string) => {
@@ -402,6 +361,28 @@ const AdminDashboard: React.FC = () => {
       case 'draft': return 'bg-gray-100 text-gray-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
       case 'completed': return 'bg-blue-100 text-blue-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getEventTypeLabel = (eventType: string) => {
+    switch (eventType) {
+      case 'cleanup': return 'Environmental Cleanup';
+      case 'treePlanting': return 'Tree Planting';
+      case 'garden': return 'Community Garden';
+      case 'education': return 'Education';
+      case 'workshop': return 'Workshop';
+      default: return eventType;
+    }
+  };
+
+  const getEventTypeColor = (eventType: string) => {
+    switch (eventType) {
+      case 'cleanup': return 'bg-blue-100 text-blue-800';
+      case 'treePlanting': return 'bg-green-100 text-green-800';
+      case 'garden': return 'bg-amber-100 text-amber-800';
+      case 'education': return 'bg-purple-100 text-purple-800';
+      case 'workshop': return 'bg-indigo-100 text-indigo-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -535,16 +516,18 @@ const AdminDashboard: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Event Type</label>
               <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
+                value={eventTypeFilter}
+                onChange={(e) => setEventTypeFilter(e.target.value)}
                 className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
               >
-                <option value="all">All Categories</option>
-                {categories.map(category => (
-                  <option key={category.id} value={category.id}>{category.name}</option>
-                ))}
+                <option value="all">All Types</option>
+                <option value="cleanup">Environmental Cleanup</option>
+                <option value="treePlanting">Tree Planting</option>
+                <option value="garden">Community Garden</option>
+                <option value="education">Education</option>
+                <option value="workshop">Workshop</option>
               </select>
             </div>
 
@@ -553,7 +536,7 @@ const AdminDashboard: React.FC = () => {
                 onClick={() => {
                   setSearchTerm('');
                   setStatusFilter('all');
-                  setCategoryFilter('all');
+                  setEventTypeFilter('all');
                 }}
                 className="w-full bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center space-x-2"
               >
@@ -584,14 +567,9 @@ const AdminDashboard: React.FC = () => {
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(event.status)}`}>
                         {event.status}
                       </span>
-                      {event.event_categories && (
-                        <span 
-                          className="px-2 py-1 rounded-full text-xs font-medium text-white"
-                          style={{ backgroundColor: event.event_categories.color }}
-                        >
-                          {event.event_categories.name}
-                        </span>
-                      )}
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getEventTypeColor(event.event_type)}`}>
+                        {getEventTypeLabel(event.event_type)}
+                      </span>
                     </div>
                     
                     <p className="text-gray-600 mb-4">{event.description}</p>
@@ -784,21 +762,6 @@ const AdminDashboard: React.FC = () => {
                       onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
                       className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
-                    <select
-                      required
-                      value={formData.category_id}
-                      onChange={(e) => setFormData(prev => ({ ...prev, category_id: e.target.value }))}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                    >
-                      <option value="">Select a category</option>
-                      {categories.map(category => (
-                        <option key={category.id} value={category.id}>{category.name}</option>
-                      ))}
-                    </select>
                   </div>
 
                   <div>
