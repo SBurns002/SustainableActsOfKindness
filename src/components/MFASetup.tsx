@@ -1,288 +1,222 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Shield, Smartphone, Key, Copy, Check, AlertTriangle, ArrowLeft } from 'lucide-react';
-import toast from 'react-hot-toast';
-import QRCode from 'qrcode';
+import { Shield, AlertCircle, RefreshCw } from 'lucide-react';
 
 interface MFASetupProps {
-  onComplete: () => void;
+  onSuccess: () => void;
   onCancel: () => void;
 }
 
-const MFASetup: React.FC<MFASetupProps> = ({ onComplete, onCancel }) => {
-  const [step, setStep] = useState<'setup' | 'verify'>('setup');
-  const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
-  const [secret, setSecret] = useState<string>('');
-  const [factorId, setFactorId] = useState<string>('');
-  const [verificationCode, setVerificationCode] = useState<string>('');
-  const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    enrollMFA();
-  }, []);
+export default function MFASetup({ onSuccess, onCancel }: MFASetupProps) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [secret, setSecret] = useState<string | null>(null);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [factorId, setFactorId] = useState<string | null>(null);
 
   const enrollMFA = async () => {
     try {
-      setLoading(true);
-      
-      // Generate a unique friendly name using timestamp
-      const friendlyName = `Authenticator App ${new Date().toISOString()}`;
-      
+      setIsLoading(true);
+      setError(null);
+
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
-        friendlyName: friendlyName
+        friendlyName: 'Authenticator App'
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('MFA enrollment error:', error);
+        
+        // Provide specific error messages based on error codes
+        if (error.message?.includes('unexpected_failure')) {
+          setError('MFA is not properly configured for this project. Please contact support or check the Supabase dashboard settings.');
+        } else if (error.message?.includes('mfa_disabled')) {
+          setError('Multi-factor authentication is disabled for this project.');
+        } else if (error.message?.includes('factor_already_exists')) {
+          setError('You already have MFA enabled. Please disable it first before setting up a new factor.');
+        } else {
+          setError(`Failed to set up MFA: ${error.message}`);
+        }
+        return;
+      }
 
       if (data) {
+        setQrCode(data.totp.qr_code);
         setSecret(data.totp.secret);
         setFactorId(data.id);
-        
-        // Generate QR code
-        const qrCodeDataUrl = await QRCode.toDataURL(data.totp.uri);
-        setQrCodeUrl(qrCodeDataUrl);
       }
-    } catch (error: any) {
-      console.error('Error enrolling MFA:', error);
-      toast.error('Failed to set up MFA. Please try again.');
+    } catch (err) {
+      console.error('Unexpected error during MFA enrollment:', err);
+      setError('An unexpected error occurred. Please try again or contact support.');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const verifyAndEnable = async () => {
-    if (!verificationCode || verificationCode.length !== 6) {
-      toast.error('Please enter a valid 6-digit code');
-      return;
-    }
+  const verifyMFA = async () => {
+    if (!factorId || !verificationCode) return;
 
     try {
-      setLoading(true);
+      setIsLoading(true);
+      setError(null);
 
       const { data, error } = await supabase.auth.mfa.challengeAndVerify({
-        factorId: factorId,
+        factorId,
         code: verificationCode
       });
 
-      if (error) throw error;
-
-      toast.success('MFA has been successfully enabled!');
-      onComplete();
-    } catch (error: any) {
-      console.error('Error verifying MFA:', error);
-      if (error.message.includes('Invalid TOTP code')) {
-        toast.error('Invalid verification code. Please check your authenticator app and try again.');
-      } else {
-        toast.error('Failed to verify MFA code. Please try again.');
+      if (error) {
+        console.error('MFA verification error:', error);
+        
+        if (error.message?.includes('invalid_code')) {
+          setError('Invalid verification code. Please check your authenticator app and try again.');
+        } else if (error.message?.includes('expired')) {
+          setError('Verification code has expired. Please try again with a new code.');
+        } else {
+          setError(`Verification failed: ${error.message}`);
+        }
+        return;
       }
+
+      if (data) {
+        onSuccess();
+      }
+    } catch (err) {
+      console.error('Unexpected error during MFA verification:', err);
+      setError('An unexpected error occurred during verification. Please try again.');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const copySecret = async () => {
-    try {
-      await navigator.clipboard.writeText(secret);
-      setCopied(true);
-      toast.success('Secret key copied to clipboard');
-      setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      toast.error('Failed to copy secret key');
-    }
+  const retrySetup = () => {
+    setError(null);
+    setQrCode(null);
+    setSecret(null);
+    setVerificationCode('');
+    setFactorId(null);
   };
-
-  if (loading && !qrCodeUrl) {
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Setting up Multi-Factor Authentication...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-8 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center space-x-3">
-            <div className="bg-emerald-100 p-2 rounded-lg">
-              <Shield className="w-6 h-6 text-emerald-600" />
+    <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-6">
+      <div className="flex items-center gap-3 mb-6">
+        <Shield className="w-6 h-6 text-blue-600" />
+        <h2 className="text-xl font-semibold text-gray-900">Set Up Two-Factor Authentication</h2>
+      </div>
+
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-red-800 font-medium">Setup Failed</p>
+              <p className="text-red-700 text-sm mt-1">{error}</p>
+              {error.includes('not properly configured') && (
+                <div className="mt-3 text-sm text-red-700">
+                  <p className="font-medium">To fix this issue:</p>
+                  <ol className="list-decimal list-inside mt-1 space-y-1">
+                    <li>Go to your Supabase project dashboard</li>
+                    <li>Navigate to Authentication → Settings</li>
+                    <li>Enable "Multi-Factor Authentication"</li>
+                    <li>Save the settings and try again</li>
+                  </ol>
+                </div>
+              )}
             </div>
-            <h2 className="text-2xl font-bold text-gray-900">
-              {step === 'setup' ? 'Set Up Multi-Factor Authentication' : 'Verify Your Setup'}
-            </h2>
           </div>
           <button
-            onClick={onCancel}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            onClick={retrySetup}
+            className="mt-3 flex items-center gap-2 text-red-600 hover:text-red-700 text-sm font-medium"
           >
-            <ArrowLeft className="w-6 h-6" />
+            <RefreshCw className="w-4 h-4" />
+            Try Again
           </button>
         </div>
+      )}
 
-        {step === 'setup' && (
-          <div className="space-y-6">
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <div className="flex items-start space-x-3">
-                <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
-                <div>
-                  <h3 className="font-medium text-amber-800">Important Security Information</h3>
-                  <p className="text-sm text-amber-700 mt-1">
-                    Multi-Factor Authentication adds an extra layer of security to your account. 
-                    You'll need an authenticator app to generate verification codes.
-                  </p>
-                </div>
-              </div>
-            </div>
+      {!qrCode && !error && (
+        <div className="text-center">
+          <p className="text-gray-600 mb-6">
+            Two-factor authentication adds an extra layer of security to your account.
+          </p>
+          <button
+            onClick={enrollMFA}
+            disabled={isLoading}
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {isLoading ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                Setting up...
+              </>
+            ) : (
+              'Set Up MFA'
+            )}
+          </button>
+        </div>
+      )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <Smartphone className="w-5 h-5 mr-2" />
-                  Step 1: Scan QR Code
-                </h3>
-                <div className="bg-white border-2 border-gray-200 rounded-lg p-4 text-center">
-                  {qrCodeUrl ? (
-                    <img src={qrCodeUrl} alt="MFA QR Code" className="mx-auto" />
-                  ) : (
-                    <div className="w-48 h-48 bg-gray-100 rounded-lg flex items-center justify-center mx-auto">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
-                    </div>
-                  )}
-                </div>
-                <p className="text-sm text-gray-600 mt-2">
-                  Use your authenticator app to scan this QR code
-                </p>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <Key className="w-5 h-5 mr-2" />
-                  Step 2: Manual Entry (Optional)
-                </h3>
-                <div className="space-y-4">
-                  <p className="text-sm text-gray-600">
-                    If you can't scan the QR code, manually enter this secret key in your authenticator app:
-                  </p>
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                    <div className="flex items-center justify-between">
-                      <code className="text-sm font-mono break-all">{secret}</code>
-                      <button
-                        onClick={copySecret}
-                        className="ml-2 p-1 text-gray-500 hover:text-gray-700 transition-colors"
-                      >
-                        {copied ? (
-                          <Check className="w-4 h-4 text-green-600" />
-                        ) : (
-                          <Copy className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-6">
-                  <h4 className="font-medium text-gray-900 mb-2">Recommended Apps:</h4>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    <li>• Google Authenticator</li>
-                    <li>• Microsoft Authenticator</li>
-                    <li>• Authy</li>
-                    <li>• 1Password</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-4">
-              <button
-                onClick={onCancel}
-                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => setStep('verify')}
-                disabled={!qrCodeUrl}
-                className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
-              >
-                Continue to Verification
-              </button>
+      {qrCode && (
+        <div className="space-y-6">
+          <div>
+            <h3 className="font-medium text-gray-900 mb-3">Step 1: Scan QR Code</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)
+            </p>
+            <div className="flex justify-center p-4 bg-gray-50 rounded-lg">
+              <img src={qrCode} alt="MFA QR Code" className="w-48 h-48" />
             </div>
           </div>
-        )}
 
-        {step === 'verify' && (
-          <div className="space-y-6">
-            <div className="text-center">
-              <div className="bg-emerald-100 p-4 rounded-full w-16 h-16 mx-auto mb-4">
-                <Smartphone className="w-8 h-8 text-emerald-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Enter Verification Code
-              </h3>
-              <p className="text-gray-600">
-                Open your authenticator app and enter the 6-digit code for this account
+          {secret && (
+            <div>
+              <h4 className="font-medium text-gray-900 mb-2">Manual Entry</h4>
+              <p className="text-sm text-gray-600 mb-2">
+                If you can't scan the QR code, enter this secret manually:
               </p>
+              <code className="block p-3 bg-gray-100 rounded text-sm font-mono break-all">
+                {secret}
+              </code>
             </div>
+          )}
 
-            <div className="max-w-xs mx-auto">
-              <input
-                type="text"
-                value={verificationCode}
-                onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="000000"
-                className="w-full text-center text-2xl font-mono tracking-widest border border-gray-300 rounded-lg py-4 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                maxLength={6}
-              />
-              <p className="text-xs text-gray-500 text-center mt-2">
-                Enter the 6-digit code from your authenticator app
-              </p>
-            </div>
-
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="font-medium text-blue-800 mb-2">What happens next?</h4>
-              <ul className="text-sm text-blue-700 space-y-1">
-                <li>• MFA will be enabled for your account</li>
-                <li>• You'll need your authenticator app to sign in</li>
-                <li>• Your account will be more secure</li>
-                <li>• You can disable MFA anytime from your profile</li>
-              </ul>
-            </div>
-
-            <div className="flex justify-between">
-              <button
-                onClick={() => setStep('setup')}
-                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Back
-              </button>
-              <div className="space-x-4">
-                <button
-                  onClick={onCancel}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={verifyAndEnable}
-                  disabled={loading || verificationCode.length !== 6}
-                  className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
-                >
-                  {loading ? 'Verifying...' : 'Enable MFA'}
-                </button>
-              </div>
-            </div>
+          <div>
+            <h3 className="font-medium text-gray-900 mb-3">Step 2: Enter Verification Code</h3>
+            <input
+              type="text"
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value)}
+              placeholder="Enter 6-digit code"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              maxLength={6}
+            />
           </div>
-        )}
-      </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={onCancel}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={verifyMFA}
+              disabled={isLoading || verificationCode.length !== 6}
+              className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isLoading ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Verifying...
+                </>
+              ) : (
+                'Verify & Enable'
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
-};
-
-export default MFASetup;
+}
