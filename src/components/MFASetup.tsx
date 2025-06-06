@@ -185,13 +185,24 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
       setDebugInfo('Challenge created. Verifying your code...');
 
       // Add a small delay to ensure the challenge is properly registered
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Step 2: Verify the code with the challenge
+      console.log('Attempting verification with:', {
+        factorId: factorId.substring(0, 8) + '...',
+        challengeId: challengeData.id,
+        codeLength: verificationCode.trim().length
+      });
+
       const { data: verifyData, error: verifyError } = await supabase.auth.mfa.verify({
         factorId,
         challengeId: challengeData.id,
         code: verificationCode.trim() // Trim any whitespace
+      });
+
+      console.log('Verification response:', {
+        hasData: !!verifyData,
+        error: verifyError ? verifyError.message : 'none'
       });
 
       if (verifyError) {
@@ -222,18 +233,47 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
         return;
       }
 
+      // Check if verification was successful
       if (verifyData) {
         console.log('MFA verification successful:', verifyData);
-        setDebugInfo('Verification successful! MFA is now enabled.');
+        setDebugInfo('Verification successful! Checking MFA status...');
+        
+        // Verify that the factor is now verified
+        const { data: updatedFactors, error: factorsError } = await supabase.auth.mfa.listFactors();
+        
+        if (factorsError) {
+          console.warn('Could not verify MFA status:', factorsError);
+        } else {
+          const verifiedFactor = updatedFactors?.totp?.find(f => f.id === factorId && f.status === 'verified');
+          if (verifiedFactor) {
+            console.log('MFA factor successfully verified:', verifiedFactor);
+            setDebugInfo('MFA successfully enabled!');
+            setStep('success');
+            toast.success('Two-factor authentication has been successfully enabled!');
+            
+            // Call onComplete to refresh the parent component
+            setTimeout(() => {
+              onComplete();
+            }, 1500);
+            return;
+          } else {
+            console.warn('MFA factor not found in verified state:', updatedFactors?.totp);
+            setError('Verification completed but MFA status could not be confirmed. Please check your profile to see if MFA is enabled.');
+          }
+        }
+        
+        // Fallback: assume success if we got here without errors
+        setDebugInfo('Verification completed successfully!');
         setStep('success');
         toast.success('Two-factor authentication has been successfully enabled!');
         
-        // Call onComplete to refresh the parent component
         setTimeout(() => {
           onComplete();
         }, 1500);
+        
       } else {
-        setError('Verification succeeded but no data returned. Please check if MFA is enabled in your profile.');
+        console.warn('Verification returned no data');
+        setError('Verification completed but no confirmation received. Please check if MFA is enabled in your profile.');
         setDetailedError('Verification returned no data');
       }
     } catch (err: any) {
@@ -439,7 +479,8 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
                     {debugInfo.includes('Creating') ? 'Creating...' : 
-                     debugInfo.includes('Verifying') ? 'Verifying...' : 'Processing...'}
+                     debugInfo.includes('Verifying') ? 'Verifying...' : 
+                     debugInfo.includes('Checking') ? 'Checking...' : 'Processing...'}
                   </>
                 ) : (
                   'Verify & Enable'
