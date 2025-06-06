@@ -105,6 +105,247 @@ export const cleanupData = {
     {
       type: "Feature",
       properties: {
+        name: "Salem Harbor Waterfront Cleanup",
+        type: "Marine Pollution",
+        priority: "high",
+        date: "2025-07-12",
+        time: "8:00 AM - 4:00 PM",
+        location: "Salem Harbor, Salem, MA",
+        address: "Derby Wharf, 174 Derby St, Salem, MA 01970",
+        description: "Historic harbor cleanup focusing on marine debris and waterfront restoration in Salem's historic port area.",
+        eventType: "cleanup"
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [-70.89, 42.52],
+          [-70.86, 42.52],
+          [-70.86, 42.50],
+          [-70.89, 42.50],
+          [-70.89, 42.52]
+        ]]
+      }
+    },
+    {
+      type: "Feature",
+      properties: {
+        name: "Forest River Park Tree Planting",
+        type: "Urban Reforestation",
+        priority: "medium",
+        date: "2025-08-10",
+        time: "9:30 AM - 2:30 PM",
+        location: "Forest River Park, Salem, MA",
+        address: "Forest River Park, Salem, MA 01970",
+        description: "Native tree planting initiative to restore urban forest canopy in Salem's largest park.",
+        eventType: "treePlanting",
+        trees: 300
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [-70.91, 42.51],
+          [-70.88, 42.51],
+          [-70.88, 42.49],
+          [-70.91, 42.49],
+          [-70.91, 42.51]
+        ]]
+      }
+    },
+    {
+      type: "Feature",
+      properties: {
+        name: "Attleboro Springs Wetland Restoration",
+        type: "Habitat Restoration",
+        priority: "high",
+        date: "2025-07-26",
+        time: "8:30 AM - 3:30 PM",
+        location: "Attleboro Springs Wildlife Sanctuary",
+        address: "Attleboro Springs Wildlife Sanctuary, North Attleborough, MA 02760",
+        description: "Wetland habitat restoration and invasive species removal in the Attleboro Springs area.",
+        eventType: "cleanup"
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [-71.35, 41.98],
+          [-71.32, 41.98],
+          [-71.32, 41.96],
+          [-71.35, 41.96],
+          [-71.35, 41.98]
+        ]]
+      }
+    },
+    {
+      type: "Feature",
+      properties: {
+        name: "Ten Mile River Cleanup",
+        type: "Water Pollution",
+        priority: "medium",
+        date: "2025-08-16",
+        time: "9:00 AM - 3:00 PM",
+        location: "Ten Mile River, Attleboro, MA",
+        address: "Capron Park, 201 County St, Attleboro, MA 02703",
+        description: "River cleanup and water quality improvement project along the Ten Mile River in Attleboro.",
+        eventType: "cleanup"
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [-71.30, 41.95],
+          [-71.27, 41.95],
+          [-71.27, 41.93],
+          [-71.30, 41.93],
+          [-71.30, 41.95]
+        ]]
+      }
+    },
+    {
+      type: "Feature",
+      properties: {
+        name: "Capron Park Community Garden",
+        type: "Community Garden",
+        date: "2025-07-30",
+        time: "10:00 AM - 4:00 PM",
+        location: "Capron Park Zoo, Attleboro, MA",
+        address: "201 County St, Attleboro, MA 02703",
+        description: "Community garden expansion project promoting sustainable urban agriculture and education.",
+        eventType: "garden",
+        plots: 85
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [-71.295, 41.945],
+          [-71.285, 41.945],
+          [-71.285, 41.935],
+          [-71.295, 41.935],
+          [-71.295, 41.945]
+        ]]
+      }
+    },
+    {
+      type: "Feature",
+      properties: {
+        name: "Middlesex Fells Reservation Cleanup",
+        type: "Forest Restoration",
+        priority: "medium",
+        date: "2025-08-05",
+        time: "8:00 AM - 4:00 PM",
+        location: "Middlesex Fells Reservation, Medford, MA",
+        address: "4 Woodland Rd, Stoneham, MA 02180",
+        description: "Large-scale forest cleanup and trail maintenance in the Middlesex Fells Reservation.",
+        eventType: "cleanup"
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [-71.12, 42.46],
+          [-71.08, 42.46],
+          [-71.08, 42.43],
+          [-71.12, 42.43],
+          [-71.12, 42.46]
+        ]]
+      }
+    },
+    {
+      type: "Feature",
+      properties: {
+        name: "Walden Pond State Reservation",
+        type: "Historic Site Restoration",
+        priority: "high",
+        date: "2025-07-19",
+        time: "7:30 AM - 3:30 PM",
+        location: "Walden Pond State Reservation, Concord, MA",
+        address: "915 Walden St, Concord, MA 01742",
+        description: "Environmental restoration of Thoreau's famous Walden Pond and surrounding conservation area.",
+        eventType: "cleanup"
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [-71.34, 42.44],
+          [-71.32, 42.44],
+          [-71.32, 42.42],
+          [-71.34, 42.42],
+          [-71.34, 42.44]
+        ]]
+      }
+    },
+    {
+      type: "Feature",
+      properties: {
+        name: "Quabbin Reservoir Forest Restoration",
+        type: "Watershed Protection",
+        priority: "high",
+        date: "2025-08-23",
+        time: "8:00 AM - 5:00 PM",
+        location: "Quabbin Reservoir, Belchertown, MA",
+        address: "485 Ware Rd, Belchertown, MA 01007",
+        description: "Watershed protection and forest restoration around Massachusetts' largest water supply.",
+        eventType: "cleanup"
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [-72.38, 42.33],
+          [-72.30, 42.33],
+          [-72.30, 42.25],
+          [-72.38, 42.25],
+          [-72.38, 42.33]
+        ]]
+      }
+    },
+    {
+      type: "Feature",
+      properties: {
+        name: "Cape Cod National Seashore Cleanup",
+        type: "Coastal Restoration",
+        priority: "medium",
+        date: "2025-08-09",
+        time: "9:00 AM - 4:00 PM",
+        location: "Cape Cod National Seashore, Eastham, MA",
+        address: "99 Marconi Site Rd, Wellfleet, MA 02667",
+        description: "Beach cleanup and dune restoration along Cape Cod's pristine coastline.",
+        eventType: "cleanup"
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [-69.97, 41.90],
+          [-69.92, 41.90],
+          [-69.92, 41.85],
+          [-69.97, 41.85],
+          [-69.97, 41.90]
+        ]]
+      }
+    },
+    {
+      type: "Feature",
+      properties: {
+        name: "Mount Greylock State Reservation",
+        type: "Mountain Ecosystem Restoration",
+        priority: "medium",
+        date: "2025-07-27",
+        time: "8:30 AM - 4:30 PM",
+        location: "Mount Greylock State Reservation, Adams, MA",
+        address: "30 Rockwell Rd, Lanesborough, MA 01237",
+        description: "High-elevation ecosystem restoration on Massachusetts' highest peak.",
+        eventType: "cleanup"
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [-73.17, 42.64],
+          [-73.14, 42.64],
+          [-73.14, 42.61],
+          [-73.17, 42.61],
+          [-73.17, 42.64]
+        ]]
+      }
+    },
+    {
+      type: "Feature",
+      properties: {
         name: "Great Lakes Plastic Pollution",
         type: "Water Pollution",
         priority: "high",
