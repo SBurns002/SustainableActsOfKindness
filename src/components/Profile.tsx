@@ -45,7 +45,6 @@ const Profile: React.FC = () => {
   const [mfaFactors, setMfaFactors] = useState<MFAFactor[]>([]);
   const [showMfaSetup, setShowMfaSetup] = useState(false);
   const [showMfaDisable, setShowMfaDisable] = useState(false);
-  const [mfaLoading, setMfaLoading] = useState(false);
 
   const getEventDetails = (eventId: string) => {
     return cleanupData.features.find(
@@ -539,10 +538,9 @@ const Profile: React.FC = () => {
                 {!isMfaEnabled && (
                   <button
                     onClick={() => setShowMfaSetup(true)}
-                    disabled={mfaLoading}
-                    className="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                    className="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition-colors"
                   >
-                    {mfaLoading ? 'Setting up...' : 'Enable MFA'}
+                    Enable MFA
                   </button>
                 )}
               </div>
