@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Shield, AlertCircle, RefreshCw, X, CheckCircle, Info, Copy, Eye, EyeOff } from 'lucide-react';
+import { Shield, AlertCircle, RefreshCw, X, CheckCircle, Info, Copy, Eye, EyeOff, Wifi, WifiOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface MFASetupProps {
@@ -19,6 +19,52 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
   const [debugInfo, setDebugInfo] = useState<string>('');
   const [showSecret, setShowSecret] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [connectionStatus, setConnectionStatus] = useState<'online' | 'offline' | 'checking'>('checking');
+
+  // Check network connectivity
+  useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        setConnectionStatus('checking');
+        
+        // Test basic connectivity to Supabase
+        const { data, error } = await supabase.auth.getUser();
+        
+        if (error && error.message.includes('Failed to fetch')) {
+          setConnectionStatus('offline');
+          setError('Network connection issue detected. Please check your internet connection.');
+        } else {
+          setConnectionStatus('online');
+        }
+      } catch (err) {
+        setConnectionStatus('offline');
+        setError('Unable to connect to authentication service. Please check your network.');
+      }
+    };
+
+    checkConnection();
+
+    // Listen for online/offline events
+    const handleOnline = () => {
+      setConnectionStatus('online');
+      if (error?.includes('Network') || error?.includes('connection')) {
+        setError(null);
+      }
+    };
+    
+    const handleOffline = () => {
+      setConnectionStatus('offline');
+      setError('Network connection lost. Please check your internet connection.');
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Auto-clear error after 10 seconds
   useEffect(() => {
@@ -76,6 +122,11 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
       setError(null);
       setDebugInfo('Initializing MFA setup...');
 
+      // Check connection first
+      if (connectionStatus === 'offline') {
+        throw new Error('No internet connection. Please check your network and try again.');
+      }
+
       // Verify authentication
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
@@ -108,6 +159,8 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
           throw new Error('Too many attempts. Please wait 5 minutes before trying again.');
         } else if (error.message?.includes('factor_name_conflict')) {
           throw new Error('A factor with this name already exists. Please try again.');
+        } else if (error.message?.includes('Failed to fetch')) {
+          throw new Error('Network connection issue. Please check your internet and try again.');
         } else {
           throw new Error(`Setup failed: ${error.message}`);
         }
@@ -138,14 +191,37 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
     }
   };
 
-  // Create a timeout wrapper for async operations
-  const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+  // Enhanced timeout wrapper with better error handling
+  const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number, operation: string): Promise<T> => {
     return Promise.race([
       promise,
       new Promise<T>((_, reject) => 
-        setTimeout(() => reject(new Error('Operation timed out')), timeoutMs)
+        setTimeout(() => reject(new Error(`${operation} timed out after ${timeoutMs/1000} seconds. This may be due to network issues or server problems.`)), timeoutMs)
       )
     ]);
+  };
+
+  // Test network connectivity before verification
+  const testNetworkConnectivity = async (): Promise<boolean> => {
+    try {
+      setDebugInfo('Testing network connectivity...');
+      
+      // Simple connectivity test
+      const { data, error } = await withTimeout(
+        supabase.auth.getUser(), 
+        5000, 
+        'Network connectivity test'
+      );
+      
+      if (error && error.message.includes('Failed to fetch')) {
+        return false;
+      }
+      
+      return true;
+    } catch (err) {
+      console.error('Network test failed:', err);
+      return false;
+    }
   };
 
   const verifyAndEnable = async () => {
@@ -162,17 +238,29 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
     try {
       setIsLoading(true);
       setError(null);
+      
+      // Test network connectivity first
+      const isConnected = await testNetworkConnectivity();
+      if (!isConnected) {
+        throw new Error('Network connectivity issue detected. Please check your internet connection and try again.');
+      }
+
       setDebugInfo('Creating verification challenge...');
 
       console.log('Starting MFA verification process:', {
         factorId: factorId.substring(0, 8) + '...',
         codeLength: verificationCode.length,
-        attempt: retryCount + 1
+        attempt: retryCount + 1,
+        timestamp: new Date().toISOString()
       });
 
       // Step 1: Create challenge with timeout
       const challengePromise = supabase.auth.mfa.challenge({ factorId });
-      const { data: challengeData, error: challengeError } = await withTimeout(challengePromise, 15000);
+      const { data: challengeData, error: challengeError } = await withTimeout(
+        challengePromise, 
+        15000, 
+        'Challenge creation'
+      );
 
       if (challengeError) {
         console.error('Challenge creation failed:', challengeError);
@@ -181,6 +269,8 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
           throw new Error('MFA setup expired. Please restart the setup process.');
         } else if (challengeError.message?.includes('mfa_disabled')) {
           throw new Error('MFA is disabled. Please contact your administrator.');
+        } else if (challengeError.message?.includes('Failed to fetch')) {
+          throw new Error('Network error during challenge creation. Please check your connection.');
         } else {
           throw new Error(`Challenge failed: ${challengeError.message}`);
         }
@@ -196,25 +286,46 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
       // Step 2: Wait for challenge to be ready
       await new Promise(resolve => setTimeout(resolve, 1500));
 
-      // Step 3: Verify the code with timeout and detailed logging
+      // Step 3: Verify the code with enhanced logging and timeout
       console.log('Attempting verification with:', {
         factorId: factorId.substring(0, 8) + '...',
         challengeId: challengeData.id.substring(0, 8) + '...',
-        code: verificationCode.replace(/./g, '*')
+        code: verificationCode.replace(/./g, '*'),
+        timestamp: new Date().toISOString()
       });
 
       setDebugInfo('Sending verification request...');
 
-      // Add timeout to the verification call
-      const verifyPromise = supabase.auth.mfa.verify({
-        factorId,
-        challengeId: challengeData.id,
-        code: verificationCode.trim()
+      // Create verification promise with detailed logging
+      const verifyPromise = new Promise(async (resolve, reject) => {
+        try {
+          console.log('Making supabase.auth.mfa.verify call...');
+          const startTime = Date.now();
+          
+          const result = await supabase.auth.mfa.verify({
+            factorId,
+            challengeId: challengeData.id,
+            code: verificationCode.trim()
+          });
+          
+          const endTime = Date.now();
+          console.log(`MFA verify call completed in ${endTime - startTime}ms:`, {
+            hasData: !!result.data,
+            hasError: !!result.error,
+            dataKeys: result.data ? Object.keys(result.data) : [],
+            errorMessage: result.error?.message
+          });
+          
+          resolve(result);
+        } catch (err) {
+          console.error('Exception during mfa.verify call:', err);
+          reject(err);
+        }
       });
 
-      let verifyResponse;
+      let verifyResponse: any;
       try {
-        verifyResponse = await withTimeout(verifyPromise, 20000); // 20 second timeout
+        verifyResponse = await withTimeout(verifyPromise, 25000, 'MFA verification'); // Increased timeout
         console.log('MFA Verify Response received:', {
           data: verifyResponse.data,
           error: verifyResponse.error,
@@ -223,7 +334,13 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
         });
       } catch (timeoutError) {
         console.error('Verification timed out:', timeoutError);
-        throw new Error('Verification request timed out. Please check your internet connection and try again.');
+        
+        // Provide more specific timeout guidance
+        throw new Error('Verification request timed out. This could be due to:\n' +
+          '• Slow internet connection\n' +
+          '• Supabase server issues\n' +
+          '• Network firewall blocking the request\n\n' +
+          'Please check your connection and try again.');
       }
 
       // Check for errors first
@@ -239,6 +356,8 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
           throw new Error('Verification session expired. Please try again.');
         } else if (verifyResponse.error.message?.includes('too_many_attempts')) {
           throw new Error('Too many failed attempts. Please wait 5 minutes before trying again.');
+        } else if (verifyResponse.error.message?.includes('Failed to fetch')) {
+          throw new Error('Network error during verification. Please check your connection and try again.');
         } else {
           throw new Error(`Verification failed: ${verifyResponse.error.message}`);
         }
@@ -251,7 +370,11 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
       // Step 4: Verify the factor is now active with timeout
       try {
         const factorsPromise = supabase.auth.mfa.listFactors();
-        const { data: updatedFactors, error: factorsError } = await withTimeout(factorsPromise, 10000);
+        const { data: updatedFactors, error: factorsError } = await withTimeout(
+          factorsPromise, 
+          10000, 
+          'Factor status check'
+        );
         
         if (!factorsError && updatedFactors?.totp) {
           const verifiedFactor = updatedFactors.totp.find(f => f.id === factorId && f.status === 'verified');
@@ -289,6 +412,8 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
       // Handle timeout specifically
       if (err.message?.includes('timed out')) {
         setError('The verification request timed out. This might be due to a slow connection or server issues. Please try again.');
+      } else if (err.message?.includes('Network') || err.message?.includes('connection')) {
+        setError('Network connection issue. Please check your internet connection and try again.');
       } else {
         setError(err.message || 'Verification failed. Please try again.');
       }
@@ -341,16 +466,37 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
             <Shield className="w-6 h-6 text-emerald-600" />
             <h2 className="text-xl font-semibold text-gray-900">Set Up Two-Factor Authentication</h2>
           </div>
-          {step !== 'success' && (
-            <button
-              onClick={onCancel}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-              disabled={isLoading}
-            >
-              <X className="w-6 h-6" />
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {/* Connection status indicator */}
+            <div className="flex items-center gap-1">
+              {connectionStatus === 'online' && <Wifi className="w-4 h-4 text-green-600" />}
+              {connectionStatus === 'offline' && <WifiOff className="w-4 h-4 text-red-600" />}
+              {connectionStatus === 'checking' && <RefreshCw className="w-4 h-4 text-gray-400 animate-spin" />}
+            </div>
+            {step !== 'success' && (
+              <button
+                onClick={onCancel}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                disabled={isLoading}
+              >
+                <X className="w-6 h-6" />
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* Connection status warning */}
+        {connectionStatus === 'offline' && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-start gap-2">
+              <WifiOff className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-red-800 text-sm font-medium">Connection Issue</p>
+                <p className="text-red-700 text-sm">Please check your internet connection before proceeding.</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {debugInfo && (
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -370,7 +516,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
               <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
               <div className="flex-1">
                 <p className="text-red-800 font-medium">Setup Error</p>
-                <p className="text-red-700 text-sm mt-1">{error}</p>
+                <p className="text-red-700 text-sm mt-1 whitespace-pre-line">{error}</p>
                 
                 {retryCount > 2 && (
                   <div className="mt-2 text-sm text-red-700">
@@ -380,6 +526,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
                       <li>Try a different authenticator app</li>
                       <li>Wait 30 seconds for a new code</li>
                       <li>Check your internet connection</li>
+                      <li>Try disabling VPN or firewall temporarily</li>
                       <li>Restart the setup process</li>
                     </ul>
                   </div>
@@ -438,13 +585,14 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
                 <ul className="list-disc list-inside space-y-1 ml-4">
                   <li>An authenticator app (Google Authenticator, Authy, 1Password, etc.)</li>
                   <li>Your smartphone or tablet</li>
+                  <li>A stable internet connection</li>
                   <li>A few minutes to complete setup</li>
                 </ul>
               </div>
             </div>
             <button
               onClick={enrollMFA}
-              disabled={isLoading}
+              disabled={isLoading || connectionStatus === 'offline'}
               className="w-full bg-emerald-600 text-white py-3 px-4 rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
             >
               {isLoading ? (
@@ -452,6 +600,8 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
                   <RefreshCw className="w-4 h-4 animate-spin" />
                   Setting up...
                 </>
+              ) : connectionStatus === 'offline' ? (
+                'Check Connection First'
               ) : (
                 'Begin MFA Setup'
               )}
@@ -514,7 +664,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-center text-lg font-mono tracking-wider"
                 maxLength={6}
                 autoFocus
-                disabled={isLoading}
+                disabled={isLoading || connectionStatus === 'offline'}
               />
               <p className="text-xs text-gray-500 mt-2 text-center">
                 Codes refresh every 30 seconds. Use the current code shown in your app.
@@ -531,7 +681,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
               </button>
               <button
                 onClick={verifyAndEnable}
-                disabled={isLoading || verificationCode.length !== 6}
+                disabled={isLoading || verificationCode.length !== 6 || connectionStatus === 'offline'}
                 className="flex-1 bg-emerald-600 text-white py-2 px-4 rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
               >
                 {isLoading ? (
@@ -542,6 +692,8 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
                      debugInfo.includes('Sending') ? 'Sending...' :
                      debugInfo.includes('Verification successful') ? 'Confirming...' : 'Processing...'}
                   </>
+                ) : connectionStatus === 'offline' ? (
+                  'Connection Required'
                 ) : (
                   'Verify & Enable'
                 )}
