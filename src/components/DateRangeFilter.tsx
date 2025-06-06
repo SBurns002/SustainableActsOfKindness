@@ -69,7 +69,7 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
 
   return (
     <div className="flex flex-col space-y-4">
-      <h2 className="text-lg font-semibold text-gray-800">Filter Cleanup Events</h2>
+      <h2 className="text-lg font-semibold text-gray-800 text-center">Filter Cleanup Events</h2>
       
       {/* Date Range Filter */}
       <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-4 sm:space-y-0">
@@ -149,7 +149,7 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
         <div className="text-red-500 text-sm font-medium">{error}</div>
       )}
       
-      <div className="flex justify-end">
+      <div className="flex justify-center">
         <button
           onClick={handleReset}
           className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"

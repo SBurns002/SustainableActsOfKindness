@@ -154,7 +154,7 @@ const MapView: React.FC = () => {
           
           {/* Navigation Section */}
           <div className="mt-8 pt-6 border-t border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Navigation</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4 text-center">Navigation</h3>
             <div className="space-y-2">
               {navigationItems.map((item) => (
                 <button
