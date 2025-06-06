@@ -50,6 +50,7 @@ const Profile: React.FC = () => {
   const [totpSecret, setTotpSecret] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState('');
   const [enrollmentId, setEnrollmentId] = useState<string | null>(null);
+  const [challengeId, setChallengeId] = useState<string | null>(null);
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [showBackupCodes, setShowBackupCodes] = useState(false);
 
@@ -241,6 +242,19 @@ const Profile: React.FC = () => {
       setEnrollmentId(data.id);
       setQrCode(data.totp.qr_code);
       setTotpSecret(data.totp.secret);
+
+      // Create a challenge for verification
+      const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
+        factorId: data.id
+      });
+
+      if (challengeError) {
+        console.error('MFA challenge error:', challengeError);
+        toast.error('Failed to create MFA challenge');
+        return;
+      }
+
+      setChallengeId(challengeData.id);
       setShowMfaSetup(true);
       
     } catch (error) {
@@ -252,7 +266,7 @@ const Profile: React.FC = () => {
   };
 
   const verifyMfaEnrollment = async () => {
-    if (!enrollmentId || !verificationCode || verificationCode.length !== 6) {
+    if (!enrollmentId || !challengeId || !verificationCode || verificationCode.length !== 6) {
       toast.error('Please enter a valid 6-digit verification code');
       return;
     }
@@ -261,7 +275,7 @@ const Profile: React.FC = () => {
     try {
       const { data, error } = await supabase.auth.mfa.verify({
         factorId: enrollmentId,
-        challengeId: enrollmentId,
+        challengeId: challengeId,
         code: verificationCode
       });
 
@@ -988,6 +1002,7 @@ const Profile: React.FC = () => {
                     setTotpSecret(null);
                     setVerificationCode('');
                     setEnrollmentId(null);
+                    setChallengeId(null);
                   }}
                   className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 >
