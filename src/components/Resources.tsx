@@ -10,7 +10,6 @@ interface Resource {
   type: 'external' | 'pdf';
   url: string;
   tags: string[];
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
   readTime?: string;
 }
 
@@ -18,7 +17,6 @@ const Resources: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedType, setSelectedType] = useState('all');
-  const [selectedDifficulty, setSelectedDifficulty] = useState('all');
 
   const resources: Resource[] = [
     // External Resources
@@ -30,7 +28,6 @@ const Resources: React.FC = () => {
       type: 'external',
       url: 'https://www.epa.gov/environmental-topics',
       tags: ['government', 'comprehensive', 'policy'],
-      difficulty: 'intermediate',
       readTime: '45 min'
     },
     {
@@ -41,7 +38,6 @@ const Resources: React.FC = () => {
       type: 'external',
       url: 'https://www.nationalgeographic.com/environment/climate-change/',
       tags: ['climate', 'research', 'global'],
-      difficulty: 'beginner',
       readTime: '30 min'
     },
     {
@@ -52,7 +48,6 @@ const Resources: React.FC = () => {
       type: 'external',
       url: 'https://www.usgbc.org/resources',
       tags: ['building', 'certification', 'construction'],
-      difficulty: 'advanced',
       readTime: '60 min'
     },
     {
@@ -63,7 +58,6 @@ const Resources: React.FC = () => {
       type: 'external',
       url: 'https://oceanconservancy.org/take-action/',
       tags: ['ocean', 'marine', 'pollution'],
-      difficulty: 'beginner',
       readTime: '25 min'
     },
     {
@@ -74,7 +68,6 @@ const Resources: React.FC = () => {
       type: 'external',
       url: 'https://zwia.org/zero-waste-definition/',
       tags: ['zero-waste', 'circular-economy', 'reduction'],
-      difficulty: 'intermediate',
       readTime: '40 min'
     },
     // PDF Articles (now with proper download handling)
@@ -86,7 +79,6 @@ const Resources: React.FC = () => {
       type: 'pdf',
       url: 'home-composting-guide.pdf',
       tags: ['composting', 'organic', 'tutorial'],
-      difficulty: 'beginner',
       readTime: '20 min'
     },
     {
@@ -97,7 +89,6 @@ const Resources: React.FC = () => {
       type: 'pdf',
       url: 'renewable-energy-homeowners.pdf',
       tags: ['solar', 'renewable', 'installation'],
-      difficulty: 'advanced',
       readTime: '35 min'
     },
     {
@@ -108,7 +99,6 @@ const Resources: React.FC = () => {
       type: 'pdf',
       url: 'water-conservation-manual.pdf',
       tags: ['conservation', 'rainwater', 'landscaping'],
-      difficulty: 'intermediate',
       readTime: '25 min'
     },
     {
@@ -119,7 +109,6 @@ const Resources: React.FC = () => {
       type: 'pdf',
       url: 'sustainable-transportation.pdf',
       tags: ['electric-vehicles', 'public-transit', 'cycling'],
-      difficulty: 'intermediate',
       readTime: '30 min'
     },
     {
@@ -130,7 +119,6 @@ const Resources: React.FC = () => {
       type: 'pdf',
       url: 'organic-gardening-permaculture.pdf',
       tags: ['gardening', 'permaculture', 'organic'],
-      difficulty: 'beginner',
       readTime: '40 min'
     }
   ];
@@ -154,17 +142,15 @@ const Resources: React.FC = () => {
       
       const matchesCategory = selectedCategory === 'all' || resource.category === selectedCategory;
       const matchesType = selectedType === 'all' || resource.type === selectedType;
-      const matchesDifficulty = selectedDifficulty === 'all' || resource.difficulty === selectedDifficulty;
       
-      return matchesSearch && matchesCategory && matchesType && matchesDifficulty;
+      return matchesSearch && matchesCategory && matchesType;
     });
-  }, [searchTerm, selectedCategory, selectedType, selectedDifficulty, resources]);
+  }, [searchTerm, selectedCategory, selectedType, resources]);
 
   const clearFilters = () => {
     setSearchTerm('');
     setSelectedCategory('all');
     setSelectedType('all');
-    setSelectedDifficulty('all');
   };
 
   const handlePdfDownload = (resource: Resource) => {
@@ -197,15 +183,6 @@ Sustainable Acts of Kindness Platform`;
     
     // Show success message
     toast.success(`Downloaded: ${resource.title}`);
-  };
-
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'beginner': return 'bg-green-100 text-green-800';
-      case 'intermediate': return 'bg-yellow-100 text-yellow-800';
-      case 'advanced': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
   };
 
   const getCategoryIcon = (category: string) => {
@@ -275,18 +252,7 @@ Sustainable Acts of Kindness Platform`;
                 <option value="pdf">PDF Articles</option>
               </select>
 
-              <select
-                value={selectedDifficulty}
-                onChange={(e) => setSelectedDifficulty(e.target.value)}
-                className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              >
-                <option value="all">All Levels</option>
-                <option value="beginner">Beginner</option>
-                <option value="intermediate">Intermediate</option>
-                <option value="advanced">Advanced</option>
-              </select>
-
-              {(searchTerm || selectedCategory !== 'all' || selectedType !== 'all' || selectedDifficulty !== 'all') && (
+              {(searchTerm || selectedCategory !== 'all' || selectedType !== 'all') && (
                 <button
                   onClick={clearFilters}
                   className="px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center space-x-2"
@@ -299,7 +265,7 @@ Sustainable Acts of Kindness Platform`;
           </div>
 
           {/* Active Filters Display */}
-          {(searchTerm || selectedCategory !== 'all' || selectedType !== 'all' || selectedDifficulty !== 'all') && (
+          {(searchTerm || selectedCategory !== 'all' || selectedType !== 'all') && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="flex items-center space-x-2 text-sm text-gray-600">
                 <Filter className="w-4 h-4" />
@@ -317,11 +283,6 @@ Sustainable Acts of Kindness Platform`;
                 {selectedType !== 'all' && (
                   <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded">
                     {selectedType === 'external' ? 'External Links' : 'PDF Articles'}
-                  </span>
-                )}
-                {selectedDifficulty !== 'all' && (
-                  <span className={`px-2 py-1 rounded capitalize ${getDifficultyColor(selectedDifficulty)}`}>
-                    {selectedDifficulty}
                   </span>
                 )}
               </div>
@@ -371,9 +332,6 @@ Sustainable Acts of Kindness Platform`;
                           ) : (
                             <Download className="w-4 h-4 text-red-600" />
                           )}
-                          <span className={`text-xs font-medium px-2 py-1 rounded ${getDifficultyColor(resource.difficulty)}`}>
-                            {resource.difficulty}
-                          </span>
                         </div>
                       </div>
                       {resource.readTime && (
