@@ -146,6 +146,51 @@ const getLocationCoordinates = (location: string): [number, number] | null => {
     '02298': [42.3601, -71.0589], // Boston - Longwood
     '02299': [42.3601, -71.0589], // Boston - Longwood
 
+    // South Shore (including missing zip codes)
+    '02301': [42.1584, -70.9342], // Brockton
+    '02302': [42.1584, -70.9342], // Brockton
+    '02303': [42.1584, -70.9342], // Brockton
+    '02304': [42.1584, -70.9342], // Brockton
+    '02305': [42.1584, -70.9342], // Brockton
+    '02322': [42.0751, -70.8342], // Avon
+    '02324': [42.0751, -70.8342], // Bridgewater
+    '02325': [42.0751, -70.8342], // Bridgewater
+    '02330': [42.1626, -70.9342], // Carver
+    '02331': [42.2084, -70.8342], // Duxbury
+    '02332': [42.2084, -70.8342], // Duxbury
+    '02333': [42.1084, -70.8342], // East Bridgewater
+    '02334': [42.0584, -70.8342], // Easton
+    '02337': [42.1084, -70.8342], // Elmwood
+    '02338': [42.1084, -70.8342], // Halifax
+    '02339': [42.2084, -70.8342], // Hanover
+    '02340': [42.2084, -70.8342], // Hanover
+    '02341': [42.2084, -70.8342], // Hanson
+    '02343': [42.1084, -70.8342], // Holbrook
+    '02344': [42.1084, -70.8342], // Middleborough
+    '02345': [42.1084, -70.8342], // Middleborough
+    '02346': [42.1084, -70.8342], // Middleborough
+    '02347': [42.1084, -70.8342], // Lakeville
+    '02348': [42.1084, -70.8342], // Lakeville
+    '02349': [42.1084, -70.8342], // Marshfield
+    '02350': [42.1084, -70.8342], // Marshfield
+    '02351': [42.1084, -70.8342], // Abington
+    '02355': [42.1084, -70.8342], // North Carver
+    '02356': [42.1084, -70.8342], // North Easton
+    '02357': [42.1084, -70.8342], // North Marshfield
+    '02358': [42.1084, -70.8342], // Pembroke
+    '02359': [42.1084, -70.8342], // Pembroke
+    '02360': [42.1084, -70.8342], // Plymouth
+    '02361': [42.1084, -70.8342], // Plymouth
+    '02362': [42.1084, -70.8342], // Plymouth
+    '02364': [42.1084, -70.8342], // Kingston
+    '02366': [42.1084, -70.8342], // South Easton
+    '02367': [42.1084, -70.8342], // Plympton
+    '02368': [42.1626, -70.9342], // Randolph
+    '02370': [42.1084, -70.8342], // Rockland
+    '02375': [42.1084, -70.8342], // South Easton
+    '02379': [42.1084, -70.8342], // West Bridgewater
+    '02381': [42.1084, -70.8342], // Whitman
+
     // North Shore
     '01970': [42.5195, -70.8967], // Salem
     '01971': [42.5195, -70.8967], // Salem
@@ -166,7 +211,7 @@ const getLocationCoordinates = (location: string): [number, number] | null => {
     '01984': [42.4751, -70.9494], // Wenham
     '01985': [42.4751, -70.9494], // West Newbury
 
-    // South Shore
+    // South Shore continued
     '02703': [41.9465, -71.2928], // Attleboro
     '02760': [41.9676, -71.3495], // North Attleborough
     '02761': [41.9676, -71.3495], // North Attleborough
@@ -539,6 +584,8 @@ const getLocationCoordinates = (location: string): [number, number] | null => {
     'easton, massachusetts': [42.0251, -71.1286],
     'sharon, ma': [42.1084, -71.1786],
     'sharon, massachusetts': [42.1084, -71.1786],
+    'carver, ma': [41.8834, -70.7648],
+    'carver, massachusetts': [41.8834, -70.7648],
 
     // Other major cities
     'new york, ny': [40.7505, -73.9934],
