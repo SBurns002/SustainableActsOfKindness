@@ -17,11 +17,17 @@ const ResetPassword: React.FC = () => {
 
   // Get the current application URL for redirects
   const getAppUrl = () => {
-    // In development, use the current origin
-    if (window.location.hostname === 'localhost' || window.location.hostname.includes('webcontainer')) {
+    // Check if we're in production by looking at the hostname
+    const hostname = window.location.hostname;
+    
+    // Development environments
+    if (hostname === 'localhost' || hostname.includes('webcontainer') || hostname.includes('127.0.0.1')) {
       return window.location.origin;
     }
-    // In production, you would set this to your actual domain
+    
+    // Production environment - you can customize this
+    // For now, we'll use the current origin, but you can hardcode your production URL here
+    // Example: return 'https://yourdomain.com';
     return window.location.origin;
   };
 

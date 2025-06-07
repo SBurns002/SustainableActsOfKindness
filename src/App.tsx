@@ -33,14 +33,14 @@ function App() {
                 <Auth />
               </div>
             } />
-            <Route path="/auth-status" element={
-              <div className="h-full overflow-y-auto">
-                <AuthStatus />
-              </div>
-            } />
             <Route path="/reset-password" element={
               <div className="h-full overflow-y-auto">
                 <ResetPassword />
+              </div>
+            } />
+            <Route path="/auth-status" element={
+              <div className="h-full overflow-y-auto">
+                <AuthStatus />
               </div>
             } />
             <Route path="/profile" element={
