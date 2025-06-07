@@ -201,17 +201,50 @@ class EventDataManager {
 
   // Generate coordinates for Boston locations with better matching
   private generateCoordinatesFromLocation(location: string): [number, number] {
-    const cleanLocation = location.toLowerCase();
+    const cleanLocation = location.toLowerCase().trim();
     
     console.log('Generating coordinates for location:', location);
     
     // Boston neighborhood coordinates with more specific matching
     const bostonCoordinates: { [key: string]: [number, number] } = {
-      // Exact matches first
-      'testing': [42.3601, -71.0589], // Specific coordinates for testing events
-      'tesing2': [42.3550, -71.0656], // Different coordinates for second test
+      // Exact matches first (for testing events)
+      'testing': [42.3601, -71.0589],
+      'tesing2': [42.3550, -71.0656],
+      'test': [42.3580, -71.0620],
       
-      // Boston neighborhoods
+      // Boston neighborhoods and areas
+      'back bay, boston, ma': [42.3467, -71.0972],
+      'beacon hill, boston, ma': [42.3588, -71.0707],
+      'north end, boston, ma': [42.3647, -71.0542],
+      'south end, boston, ma': [42.3467, -71.0972],
+      'downtown boston, ma': [42.3601, -71.0589],
+      'financial district, boston, ma': [42.3601, -71.0589],
+      'chinatown, boston, ma': [42.3467, -71.0972],
+      'south boston, ma': [42.3188, -71.0846],
+      'east boston, ma': [42.3188, -71.0846],
+      'charlestown, boston, ma': [42.3875, -71.0995],
+      'jamaica plain, boston, ma': [42.3188, -71.0846],
+      'roxbury, boston, ma': [42.3188, -71.0846],
+      'dorchester, boston, ma': [42.3188, -71.0846],
+      'mattapan, boston, ma': [42.3188, -71.0846],
+      'roslindale, boston, ma': [42.3188, -71.0846],
+      'west roxbury, boston, ma': [42.3188, -71.0846],
+      'hyde park, boston, ma': [42.3188, -71.0846],
+      'allston, boston, ma': [42.3188, -71.0846],
+      'brighton, boston, ma': [42.3188, -71.0846],
+      'fenway, boston, ma': [42.3467, -71.0972],
+      'mission hill, boston, ma': [42.3188, -71.0846],
+      'boston common, boston, ma': [42.3550, -71.0656],
+      'public garden, boston, ma': [42.3541, -71.0711],
+      'boston harbor, boston, ma': [42.3601, -71.0589],
+      'charles river esplanade, boston, ma': [42.3601, -71.0589],
+      'franklin park, boston, ma': [42.3188, -71.0846],
+      'arnold arboretum, boston, ma': [42.3188, -71.0846],
+      'castle island, boston, ma': [42.3188, -71.0846],
+      'boston university area, boston, ma': [42.3505, -71.1054],
+      'harvard medical area, boston, ma': [42.3467, -71.0972],
+      
+      // Partial matches
       'back bay': [42.3467, -71.0972],
       'beacon hill': [42.3588, -71.0707],
       'north end': [42.3647, -71.0542],
@@ -236,7 +269,7 @@ class EventDataManager {
       'boston common': [42.3550, -71.0656],
       'public garden': [42.3541, -71.0711],
       'boston harbor': [42.3601, -71.0589],
-      'charles river esplanade': [42.3601, -71.0589],
+      'charles river': [42.3601, -71.0589],
       'franklin park': [42.3188, -71.0846],
       'arnold arboretum': [42.3188, -71.0846],
       'castle island': [42.3188, -71.0846],
@@ -248,9 +281,15 @@ class EventDataManager {
     };
 
     // Try exact matches first
+    if (bostonCoordinates[cleanLocation]) {
+      console.log(`Found exact coordinates for "${cleanLocation}":`, bostonCoordinates[cleanLocation]);
+      return bostonCoordinates[cleanLocation];
+    }
+
+    // Try partial matches
     for (const [key, coords] of Object.entries(bostonCoordinates)) {
-      if (cleanLocation === key || cleanLocation.includes(key)) {
-        console.log(`Found coordinates for "${key}":`, coords);
+      if (cleanLocation.includes(key)) {
+        console.log(`Found partial match coordinates for "${key}" in "${cleanLocation}":`, coords);
         return coords;
       }
     }
@@ -275,11 +314,11 @@ class EventDataManager {
     });
 
     // Create a proper polygon around the coordinates
-    const polygonSize = 0.005; // Smaller polygon for better visibility
+    const polygonSize = 0.008; // Larger polygon for better visibility
     const [lng, lat] = coordinates;
 
-    return {
-      type: "Feature",
+    const feature = {
+      type: "Feature" as const,
       properties: {
         id: event.id,
         name: event.title,
@@ -306,7 +345,7 @@ class EventDataManager {
         ...(event.event_type === 'garden' && { plots: event.max_participants || 50 })
       },
       geometry: {
-        type: "Polygon",
+        type: "Polygon" as const,
         coordinates: [[
           [lng - polygonSize, lat + polygonSize],
           [lng + polygonSize, lat + polygonSize],
@@ -316,6 +355,14 @@ class EventDataManager {
         ]]
       }
     };
+
+    console.log('Generated GeoJSON feature:', {
+      name: feature.properties.name,
+      coordinates: feature.geometry.coordinates[0],
+      center: [lng, lat]
+    });
+
+    return feature;
   }
 
   // Get merged event data (static + updates + admin-created)
@@ -363,8 +410,9 @@ class EventDataManager {
     // Add admin-created events as new features (only active ones)
     const adminFeatures = Array.from(this.adminCreatedEvents.values())
       .filter(event => {
-        console.log(`Checking admin event ${event.title}: status=${event.status}, active=${event.status === 'active'}`);
-        return event.status === 'active';
+        const isActive = event.status === 'active';
+        console.log(`Checking admin event ${event.title}: status=${event.status}, active=${isActive}`);
+        return isActive;
       })
       .map(event => this.adminEventToGeoJSONFeature(event));
 

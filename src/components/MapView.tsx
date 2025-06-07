@@ -922,6 +922,16 @@ const MapView: React.FC = () => {
     console.log('Current filtered data features:', filteredData.features.map(f => f.properties.name));
     console.log('Map key:', mapKey);
     console.log('Filtered data:', filteredData);
+    console.log('Map center:', mapCenter);
+    console.log('Map zoom:', mapZoom);
+    
+    // Force a complete refresh
+    eventDataManager.refresh().then(() => {
+      const newData = eventDataManager.getMergedEventData();
+      console.log('After refresh - merged data features:', newData.features.map(f => f.properties.name));
+      applyFilters(newData);
+      setMapKey(prev => prev + 1);
+    });
   };
 
   // Add debug button (remove in production)
