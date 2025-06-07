@@ -57,38 +57,83 @@ interface AdminUser {
   assigned_by_email: string;
 }
 
-// Boston neighborhoods and areas
+// Predefined Boston locations with coordinates for easy mapping
 const BOSTON_LOCATIONS = [
-  'Back Bay, Boston, MA',
-  'Beacon Hill, Boston, MA',
-  'North End, Boston, MA',
-  'South End, Boston, MA',
-  'Downtown Boston, MA',
-  'Financial District, Boston, MA',
-  'Chinatown, Boston, MA',
-  'South Boston, MA',
-  'East Boston, MA',
-  'Charlestown, Boston, MA',
-  'Jamaica Plain, Boston, MA',
-  'Roxbury, Boston, MA',
-  'Dorchester, Boston, MA',
-  'Mattapan, Boston, MA',
-  'Roslindale, Boston, MA',
-  'West Roxbury, Boston, MA',
-  'Hyde Park, Boston, MA',
-  'Allston, Boston, MA',
-  'Brighton, Boston, MA',
-  'Fenway, Boston, MA',
-  'Mission Hill, Boston, MA',
-  'Boston Common, Boston, MA',
-  'Public Garden, Boston, MA',
-  'Boston Harbor, Boston, MA',
-  'Charles River Esplanade, Boston, MA',
-  'Franklin Park, Boston, MA',
-  'Arnold Arboretum, Boston, MA',
-  'Castle Island, Boston, MA',
-  'Boston University Area, Boston, MA',
-  'Harvard Medical Area, Boston, MA'
+  {
+    name: 'Boston Common',
+    address: '139 Tremont St, Boston, MA 02111',
+    coordinates: { lat: 42.3550, lng: -71.0656 }
+  },
+  {
+    name: 'Public Garden',
+    address: '4 Charles St, Boston, MA 02116',
+    coordinates: { lat: 42.3541, lng: -71.0711 }
+  },
+  {
+    name: 'Charles River Esplanade',
+    address: '100 Storrow Drive, Boston, MA 02116',
+    coordinates: { lat: 42.3601, lng: -71.0789 }
+  },
+  {
+    name: 'Franklin Park',
+    address: '1 Franklin Park Rd, Boston, MA 02121',
+    coordinates: { lat: 42.3188, lng: -71.0846 }
+  },
+  {
+    name: 'Arnold Arboretum',
+    address: '125 Arborway, Boston, MA 02130',
+    coordinates: { lat: 42.3188, lng: -71.1253 }
+  },
+  {
+    name: 'Boston Harbor',
+    address: 'Long Wharf, Boston, MA 02110',
+    coordinates: { lat: 42.3601, lng: -71.0489 }
+  },
+  {
+    name: 'Castle Island',
+    address: '2010 William J Day Blvd, Boston, MA 02127',
+    coordinates: { lat: 42.3388, lng: -71.0103 }
+  },
+  {
+    name: 'Jamaica Pond',
+    address: '507 Jamaicaway, Boston, MA 02130',
+    coordinates: { lat: 42.3233, lng: -71.1197 }
+  },
+  {
+    name: 'Back Bay Fens',
+    address: 'Park Dr, Boston, MA 02215',
+    coordinates: { lat: 42.3467, lng: -71.0972 }
+  },
+  {
+    name: 'North End Waterfront',
+    address: 'Commercial Wharf, Boston, MA 02109',
+    coordinates: { lat: 42.3647, lng: -71.0542 }
+  },
+  {
+    name: 'South End Parks',
+    address: 'Washington St, Boston, MA 02118',
+    coordinates: { lat: 42.3467, lng: -71.0772 }
+  },
+  {
+    name: 'Beacon Hill',
+    address: 'Beacon St, Boston, MA 02108',
+    coordinates: { lat: 42.3588, lng: -71.0707 }
+  },
+  {
+    name: 'Charlestown Navy Yard',
+    address: '1 Constitution Rd, Charlestown, MA 02129',
+    coordinates: { lat: 42.3875, lng: -71.0595 }
+  },
+  {
+    name: 'East Boston Waterfront',
+    address: 'Piers Park, East Boston, MA 02128',
+    coordinates: { lat: 42.3688, lng: -71.0203 }
+  },
+  {
+    name: 'Dorchester Bay',
+    address: 'Morrissey Blvd, Boston, MA 02125',
+    coordinates: { lat: 42.3088, lng: -71.0403 }
+  }
 ];
 
 const AdminDashboard: React.FC = () => {
@@ -119,6 +164,7 @@ const AdminDashboard: React.FC = () => {
     end_time: '',
     location: '',
     address: '',
+    coordinates: { lat: 0, lng: 0 },
     max_participants: '',
     requirements: [''],
     what_to_bring: [''],
@@ -258,6 +304,18 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleLocationChange = (locationName: string) => {
+    const selectedLocation = BOSTON_LOCATIONS.find(loc => loc.name === locationName);
+    if (selectedLocation) {
+      setFormData(prev => ({
+        ...prev,
+        location: selectedLocation.name,
+        address: selectedLocation.address,
+        coordinates: selectedLocation.coordinates
+      }));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -266,9 +324,9 @@ const AdminDashboard: React.FC = () => {
       return;
     }
 
-    // Validate that location is in Boston
-    if (!formData.location || !formData.location.toLowerCase().includes('boston')) {
-      toast.error('Location must be in Boston, Massachusetts');
+    // Validate that a location is selected
+    if (!formData.location) {
+      toast.error('Please select a Boston location');
       return;
     }
     
@@ -327,6 +385,7 @@ const AdminDashboard: React.FC = () => {
       end_time: event.end_time || '',
       location: event.location,
       address: event.address || '',
+      coordinates: event.coordinates || { lat: 0, lng: 0 },
       max_participants: event.max_participants?.toString() || '',
       requirements: event.requirements?.length ? event.requirements : [''],
       what_to_bring: event.what_to_bring?.length ? event.what_to_bring : [''],
@@ -369,6 +428,7 @@ const AdminDashboard: React.FC = () => {
       end_time: '',
       location: '',
       address: '',
+      coordinates: { lat: 0, lng: 0 },
       max_participants: '',
       requirements: [''],
       what_to_bring: [''],
@@ -904,37 +964,29 @@ const AdminDashboard: React.FC = () => {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Boston Location *</label>
-                    <select
-                      required
-                      value={formData.location}
-                      onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                    >
-                      <option value="">Select a Boston location...</option>
-                      {BOSTON_LOCATIONS.map((location) => (
-                        <option key={location} value={location}>
-                          {location}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Events are currently restricted to Boston, Massachusetts locations only
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Specific Address</label>
-                    <input
-                      type="text"
-                      value={formData.address}
-                      onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                      placeholder="e.g., 123 Main St, Boston, MA 02101"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Boston Location *</label>
+                  <select
+                    required
+                    value={formData.location}
+                    onChange={(e) => handleLocationChange(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  >
+                    <option value="">Select a Boston location...</option>
+                    {BOSTON_LOCATIONS.map((location) => (
+                      <option key={location.name} value={location.name}>
+                        {location.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Pre-configured Boston locations with exact coordinates for map placement
+                  </p>
+                  {formData.address && (
+                    <div className="mt-2 p-2 bg-emerald-50 border border-emerald-200 rounded text-sm">
+                      <strong>Address:</strong> {formData.address}
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
