@@ -54,6 +54,52 @@ const MapView: React.FC = () => {
     };
   }, []);
 
+  // Function to check if an event is in the Boston area
+  const isBostonAreaEvent = (feature: any) => {
+    const location = feature.properties.location?.toLowerCase() || '';
+    const address = feature.properties.address?.toLowerCase() || '';
+    
+    // Check for Massachusetts and Boston area indicators
+    const bostonKeywords = [
+      'boston', 'cambridge', 'somerville', 'charlestown', 'brookline',
+      'newton', 'watertown', 'medford', 'malden', 'everett',
+      'chelsea', 'revere', 'winthrop', 'quincy', 'milton',
+      'dedham', 'needham', 'wellesley', 'waltham', 'arlington',
+      'belmont', 'lexington', 'concord', 'lincoln', 'weston',
+      'massachusetts', 'ma', 'mass'
+    ];
+    
+    // Check if location or address contains Boston area keywords
+    const isInBostonArea = bostonKeywords.some(keyword => 
+      location.includes(keyword) || address.includes(keyword)
+    );
+    
+    // Also check coordinates - Boston area is roughly between these bounds
+    if (feature.geometry && feature.geometry.coordinates) {
+      const coords = feature.geometry.coordinates[0]; // Get first coordinate of polygon
+      if (coords && coords.length > 0) {
+        const [lng, lat] = coords[0]; // First point of the polygon
+        
+        // Boston metropolitan area bounds (approximate)
+        const bostonBounds = {
+          north: 42.8,   // North of Boston
+          south: 42.0,   // South of Boston
+          east: -70.5,   // East (Atlantic coast)
+          west: -71.8    // West of Boston
+        };
+        
+        const isInBounds = lat >= bostonBounds.south && 
+                          lat <= bostonBounds.north && 
+                          lng >= bostonBounds.west && 
+                          lng <= bostonBounds.east;
+        
+        return isInBostonArea || isInBounds;
+      }
+    }
+    
+    return isInBostonArea;
+  };
+
   const applyFilters = (data: any) => {
     let filtered = data;
 
@@ -214,9 +260,13 @@ const MapView: React.FC = () => {
     { icon: Mail, label: 'Contact', path: '/contact' }
   ];
 
+  // Filter events to only show Boston area events in the list
+  const bostonAreaEvents = filteredData.features.filter(isBostonAreaEvent);
+
   // Debug logging for rendering
   console.log('MapView render:', {
     filteredDataFeatures: filteredData.features.length,
+    bostonAreaEvents: bostonAreaEvents.length,
     mapKey: mapKey,
     mapCenter: mapCenter,
     mapZoom: mapZoom
@@ -228,23 +278,23 @@ const MapView: React.FC = () => {
       <div className="w-80 bg-white shadow-lg z-[1001] overflow-y-auto">
         <div className="p-4">
           {/* Events List Toggle */}
-          {filteredData.features.length > 0 && (
+          {bostonAreaEvents.length > 0 && (
             <div className="mb-6">
               <button
                 onClick={() => setShowEventsList(!showEventsList)}
                 className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium"
               >
-                {showEventsList ? 'Hide Events List' : `Show Events List (${filteredData.features.length})`}
+                {showEventsList ? 'Hide Events List' : `Show Boston Events (${bostonAreaEvents.length})`}
               </button>
             </div>
           )}
 
-          {/* Events List */}
+          {/* Events List - Only Boston Area Events */}
           {showEventsList && (
             <div className="mb-6 max-h-96 overflow-y-auto">
               <h3 className="text-md font-semibold text-gray-800 mb-3">Events in Boston Area</h3>
               <div className="space-y-3">
-                {filteredData.features.map((feature: any, index: number) => (
+                {bostonAreaEvents.map((feature: any, index: number) => (
                   <div
                     key={`${feature.properties.name}-${index}`}
                     className="border border-gray-200 rounded-lg p-3 hover:border-emerald-500 transition-colors cursor-pointer"
@@ -292,6 +342,15 @@ const MapView: React.FC = () => {
                   </div>
                 ))}
               </div>
+              
+              {/* Show info about filtered out events */}
+              {filteredData.features.length > bostonAreaEvents.length && (
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-blue-800 text-sm">
+                    <strong>Note:</strong> {filteredData.features.length - bostonAreaEvents.length} events outside the Boston area are hidden from this list but still visible on the map.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
