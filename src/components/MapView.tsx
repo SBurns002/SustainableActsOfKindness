@@ -721,7 +721,20 @@ const MapView: React.FC = () => {
       setMapKey(prev => prev + 1);
     });
 
-    return unsubscribe;
+    // Listen for admin event creation
+    const handleAdminEventCreated = () => {
+      console.log('Admin event created, refreshing map data...');
+      const mergedData = eventDataManager.getMergedEventData();
+      applyFilters(mergedData);
+      setMapKey(prev => prev + 1);
+    };
+
+    window.addEventListener('adminEventCreated', handleAdminEventCreated);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('adminEventCreated', handleAdminEventCreated);
+    };
   }, []);
 
   const applyFilters = (data: any) => {
@@ -737,11 +750,22 @@ const MapView: React.FC = () => {
       filtered = filterCleanupDataByEventType(filtered, selectedEventTypes);
     }
 
+    console.log('Applying filters to data:', {
+      originalFeatures: data.features.length,
+      filteredFeatures: filtered.features.length,
+      dateRange: dateRange,
+      eventTypes: selectedEventTypes
+    });
+
     setFilteredData(filtered);
   };
 
   useEffect(() => {
     const mergedData = eventDataManager.getMergedEventData();
+    console.log('Initial merged data:', {
+      totalFeatures: mergedData.features.length,
+      featureNames: mergedData.features.map(f => f.properties.name)
+    });
     applyFilters(mergedData);
   }, [dateRange, selectedEventTypes]);
 
@@ -895,6 +919,14 @@ const MapView: React.FC = () => {
     { icon: BookOpen, label: 'Resources', path: '/resources' },
     { icon: Mail, label: 'Contact', path: '/contact' }
   ];
+
+  // Debug logging for rendering
+  console.log('MapView render:', {
+    filteredDataFeatures: filteredData.features.length,
+    mapKey: mapKey,
+    mapCenter: mapCenter,
+    mapZoom: mapZoom
+  });
 
   return (
     <div className="relative w-full h-full flex">
@@ -1078,7 +1110,7 @@ const MapView: React.FC = () => {
       {/* Map container */}
       <div className="flex-1">
         <MapContainer
-          key={`${mapKey}-${mapCenter[0]}-${mapCenter[1]}`}
+          key={`map-${mapKey}`}
           center={mapCenter}
           zoom={mapZoom}
           className="w-full h-full"
@@ -1090,14 +1122,22 @@ const MapView: React.FC = () => {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           
-          {filteredData.features.map((feature: any, index: number) => (
-            <GeoJSON
-              key={`${feature.properties.name}-${index}-${feature.properties.updated_at || 'static'}-${mapKey}`}
-              data={feature}
-              style={getFeatureStyle}
-              onEachFeature={onEachFeature}
-            />
-          ))}
+          {filteredData.features.map((feature: any, index: number) => {
+            // Create a unique key that includes the event ID if available
+            const eventId = feature.properties.id || feature.properties.name;
+            const uniqueKey = `${feature.properties.name}-${index}-${eventId}-${mapKey}`;
+            
+            console.log(`Rendering GeoJSON feature: ${feature.properties.name} with key: ${uniqueKey}`);
+            
+            return (
+              <GeoJSON
+                key={uniqueKey}
+                data={feature}
+                style={getFeatureStyle}
+                onEachFeature={onEachFeature}
+              />
+            );
+          })}
         </MapContainer>
       </div>
       
