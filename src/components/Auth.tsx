@@ -44,28 +44,28 @@ const Auth: React.FC = () => {
   // Check URL parameters on component mount
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
+    const hashParams = new URLSearchParams(location.hash.substring(1));
+    
+    // Check both URL params and hash for tokens
     const isPasswordReset = urlParams.get('reset') === 'true';
-    const hasError = urlParams.get('error');
-    const hasErrorDescription = urlParams.get('error_description');
-    const isEmailConfirmed = urlParams.get('type') === 'signup';
-    const hasAccessToken = urlParams.get('access_token');
-    const hasRefreshToken = urlParams.get('refresh_token');
+    const hasError = urlParams.get('error') || hashParams.get('error');
+    const hasErrorDescription = urlParams.get('error_description') || hashParams.get('error_description');
+    const isEmailConfirmed = urlParams.get('type') === 'signup' || hashParams.get('type') === 'signup';
+    const hasAccessToken = urlParams.get('access_token') || hashParams.get('access_token');
+    const hasRefreshToken = urlParams.get('refresh_token') || hashParams.get('refresh_token');
+    const hasTokenHash = urlParams.get('token_hash') || hashParams.get('token_hash');
+
+    console.log('Auth URL params check:', {
+      isEmailConfirmed,
+      hasAccessToken: !!hasAccessToken,
+      hasRefreshToken: !!hasRefreshToken,
+      hasTokenHash: !!hasTokenHash,
+      fullUrl: window.location.href
+    });
 
     // Handle email confirmation
-    if (isEmailConfirmed || (hasAccessToken && hasRefreshToken)) {
-      // User clicked email confirmation link
-      toast.success('Email confirmed successfully! You are now signed in.');
-      
-      // Clear the URL parameters
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.delete('type');
-      newUrl.searchParams.delete('token_hash');
-      newUrl.searchParams.delete('access_token');
-      newUrl.searchParams.delete('refresh_token');
-      window.history.replaceState({}, '', newUrl.toString());
-      
-      // Redirect to profile for new users
-      navigate('/profile', { state: { isNewUser: true } });
+    if (isEmailConfirmed && (hasAccessToken || hasTokenHash)) {
+      handleEmailConfirmation(hasAccessToken, hasRefreshToken, hasTokenHash);
       return;
     }
 
@@ -86,9 +86,75 @@ const Auth: React.FC = () => {
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete('error');
       newUrl.searchParams.delete('error_description');
+      newUrl.hash = '';
       window.history.replaceState({}, '', newUrl.toString());
     }
-  }, [location.search, navigate]);
+  }, [location.search, location.hash, navigate]);
+
+  const handleEmailConfirmation = async (accessToken: string | null, refreshToken: string | null, tokenHash: string | null) => {
+    try {
+      console.log('Handling email confirmation...');
+      
+      if (accessToken && refreshToken) {
+        // Method 1: Set session with tokens
+        console.log('Setting session with access/refresh tokens');
+        const { data, error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken
+        });
+
+        if (error) {
+          console.error('Error setting session:', error);
+          throw error;
+        }
+
+        console.log('Session set successfully:', data);
+      } else if (tokenHash) {
+        // Method 2: Verify OTP with token hash
+        console.log('Verifying OTP with token hash');
+        const { data, error } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: 'signup'
+        });
+
+        if (error) {
+          console.error('Error verifying OTP:', error);
+          throw error;
+        }
+
+        console.log('OTP verified successfully:', data);
+      } else {
+        throw new Error('No valid confirmation tokens found');
+      }
+
+      // Clear URL parameters
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('type');
+      newUrl.searchParams.delete('token_hash');
+      newUrl.searchParams.delete('access_token');
+      newUrl.searchParams.delete('refresh_token');
+      newUrl.hash = '';
+      window.history.replaceState({}, '', newUrl.toString());
+
+      // Show success message and redirect
+      toast.success('Email confirmed successfully! Welcome to Sustainable Acts of Kindness!');
+      
+      // Small delay to ensure session is fully established
+      setTimeout(() => {
+        navigate('/profile', { state: { isNewUser: true } });
+      }, 1000);
+
+    } catch (error: any) {
+      console.error('Email confirmation error:', error);
+      toast.error('Failed to confirm email. Please try signing in or contact support.');
+      
+      // Clear URL and show sign in form
+      const newUrl = new URL(window.location.href);
+      newUrl.search = '';
+      newUrl.hash = '';
+      window.history.replaceState({}, '', newUrl.toString());
+    }
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
