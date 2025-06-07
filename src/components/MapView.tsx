@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, GeoJSON, ZoomControl } from 'react-leaflet';
 import { useNavigate } from 'react-router-dom';
-import { Home, Info, BookOpen, Mail, LogIn, UserCircle, Search, MapPin, Calendar, Users, Clock, AlertCircle } from 'lucide-react';
+import { Home, Info, BookOpen, Mail, LogIn, UserCircle, MapPin, Calendar, Users, Clock } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { eventDataManager } from '../lib/eventDataManager';
 import DateRangeFilter from './DateRangeFilter';
@@ -26,49 +26,7 @@ const MapView: React.FC = () => {
   const [mapKey, setMapKey] = useState(0);
   const [mapCenter, setMapCenter] = useState<[number, number]>([42.3601, -71.0589]); // Boston center
   const [mapZoom, setMapZoom] = useState(12);
-  const [userZipCode, setUserZipCode] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [currentLocation, setCurrentLocation] = useState<string | null>(null);
   const [showEventsList, setShowEventsList] = useState(false);
-  const [showLocationNotFound, setShowLocationNotFound] = useState(false);
-
-  useEffect(() => {
-    // Check for user's preferred zip code
-    const checkUserZipCode = async () => {
-      // First check localStorage for immediate redirect
-      const storedZipCode = localStorage.getItem('userZipCode');
-      if (storedZipCode) {
-        // For Boston area zip codes only
-        if (storedZipCode.startsWith('021') || storedZipCode.startsWith('022')) {
-          setMapCenter([42.3601, -71.0589]);
-          setMapZoom(13);
-          setUserZipCode(storedZipCode);
-          setCurrentLocation(storedZipCode);
-        }
-        localStorage.removeItem('userZipCode');
-        return;
-      }
-
-      // Then check user profile in database
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('zip_code')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (profile?.zip_code && (profile.zip_code.startsWith('021') || profile.zip_code.startsWith('022'))) {
-          setMapCenter([42.3601, -71.0589]);
-          setMapZoom(13);
-          setUserZipCode(profile.zip_code);
-          setCurrentLocation(profile.zip_code);
-        }
-      }
-    };
-
-    checkUserZipCode();
-  }, []);
 
   useEffect(() => {
     // Listen for event data updates
@@ -142,30 +100,6 @@ const MapView: React.FC = () => {
 
     return () => subscription.unsubscribe();
   }, []);
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
-
-    const query = searchQuery.trim().toLowerCase();
-    
-    // Simple Boston area search
-    if (query.includes('boston') || query.startsWith('021') || query.startsWith('022')) {
-      setMapCenter([42.3601, -71.0589]);
-      setMapZoom(13);
-      setCurrentLocation(searchQuery.trim());
-      setUserZipCode(null);
-      setShowEventsList(true);
-      setShowLocationNotFound(false);
-      setMapKey(prev => prev + 1);
-    } else {
-      // Show location not found message
-      setShowLocationNotFound(true);
-      setTimeout(() => {
-        setShowLocationNotFound(false);
-      }, 8000);
-    }
-  };
 
   const getFeatureStyle = (feature: any) => {
     const { eventType } = feature.properties;
@@ -290,67 +224,9 @@ const MapView: React.FC = () => {
 
   return (
     <div className="relative w-full h-full flex">
-      {/* Left sidebar with search, filters and navigation */}
+      {/* Left sidebar with filters and navigation */}
       <div className="w-80 bg-white shadow-lg z-[1001] overflow-y-auto">
         <div className="p-4">
-          {/* Search Section */}
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4 text-center">Find Boston Sustainability Events</h2>
-            <form onSubmit={handleSearch} className="space-y-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Enter Boston zip code or 'Boston'..."
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full bg-emerald-600 text-white py-3 px-4 rounded-lg hover:bg-emerald-700 transition-colors font-medium"
-              >
-                Search Events
-              </button>
-            </form>
-            
-            {/* Location Not Found Message */}
-            {showLocationNotFound && (
-              <div className="mt-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                <div className="flex items-start space-x-3">
-                  <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <h4 className="text-amber-900 font-medium text-sm">Location Not Found</h4>
-                    <p className="text-amber-800 text-sm mt-1">
-                      Events are currently only available in Boston, Massachusetts.
-                    </p>
-                    <p className="text-amber-700 text-xs mt-2">
-                      Try searching for "Boston" or a Boston zip code (021xx, 022xx).
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {/* Current Location Indicator */}
-            {(currentLocation || userZipCode) && !showLocationNotFound && (
-              <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <MapPin className="w-4 h-4 text-emerald-600" />
-                  <p className="text-emerald-800 text-sm font-medium">
-                    {currentLocation ? `Showing events near ${currentLocation}` : `Showing events near ${userZipCode}`}
-                  </p>
-                </div>
-                {userZipCode && !currentLocation && (
-                  <p className="text-emerald-700 text-xs mt-1">
-                    From your profile preferences
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-
           {/* Events List Toggle */}
           {filteredData.features.length > 0 && (
             <div className="mb-6">
