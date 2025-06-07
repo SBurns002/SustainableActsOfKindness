@@ -46,6 +46,7 @@ class EventDataManager {
   // Load event updates from the database
   private async loadEventUpdates() {
     try {
+      console.log('Loading event updates from database...');
       const { data: events, error } = await supabase
         .from('events')
         .select('*')
@@ -55,6 +56,8 @@ class EventDataManager {
         console.error('Error loading event updates:', error);
         return;
       }
+
+      console.log('Raw events from database:', events);
 
       // Clear existing maps
       this.eventUpdates.clear();
@@ -101,10 +104,11 @@ class EventDataManager {
         if (isAdminCreated) {
           // Store admin-created events separately
           this.adminCreatedEvents.set(event.id, eventUpdate);
-          console.log('Loaded admin-created event:', event.title);
+          console.log('Loaded admin-created event:', event.title, 'with ID:', event.id);
         } else {
           // Store by original name for mapping to static data
           this.eventUpdates.set(originalName, eventUpdate);
+          console.log('Loaded static event update:', event.title, 'mapped to:', originalName);
         }
 
         // Also store by current title for lookups
@@ -248,6 +252,13 @@ class EventDataManager {
     const coordinates = event.coordinates 
       ? [event.coordinates.lng, event.coordinates.lat]
       : this.generateCoordinatesFromLocation(event.location);
+
+    console.log('Converting admin event to GeoJSON:', {
+      title: event.title,
+      location: event.location,
+      coordinates: coordinates,
+      eventType: event.event_type
+    });
 
     return {
       type: "Feature",
@@ -435,6 +446,7 @@ class EventDataManager {
 
   // Refresh data from database
   async refresh() {
+    console.log('Refreshing event data from database...');
     await this.loadEventUpdates();
   }
 

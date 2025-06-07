@@ -724,6 +724,25 @@ const MapView: React.FC = () => {
     return unsubscribe;
   }, []);
 
+  // Listen for admin event creation
+  useEffect(() => {
+    const handleAdminEventCreated = () => {
+      console.log('Admin event created, refreshing map data...');
+      // Force refresh the event data manager
+      eventDataManager.refresh().then(() => {
+        const mergedData = eventDataManager.getMergedEventData();
+        applyFilters(mergedData);
+        setMapKey(prev => prev + 1);
+        console.log('Map refreshed with new admin event');
+      });
+    };
+
+    window.addEventListener('adminEventCreated', handleAdminEventCreated);
+    return () => {
+      window.removeEventListener('adminEventCreated', handleAdminEventCreated);
+    };
+  }, []);
+
   const applyFilters = (data: any) => {
     let filtered = data;
 
