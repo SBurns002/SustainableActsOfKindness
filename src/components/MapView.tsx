@@ -1120,8 +1120,8 @@ const MapView: React.FC = () => {
         </MapContainer>
       </div>
       
-      {/* Legend positioned on the right side of the map */}
-      <div className="absolute bottom-4 right-4 z-[1000]">
+      {/* Legend positioned fixed in bottom right corner */}
+      <div className="fixed bottom-4 right-4 z-[1000]">
         <MapLegend />
       </div>
     </div>
