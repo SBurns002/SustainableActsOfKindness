@@ -95,8 +95,22 @@ const Auth: React.FC = () => {
     try {
       console.log('Handling email confirmation...');
       
-      if (accessToken && refreshToken) {
-        // Method 1: Set session with tokens
+      if (tokenHash) {
+        // Method 1: Token hash approach (recommended for newer Supabase versions)
+        console.log('Using token hash verification method');
+        const { data, error } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: 'signup'
+        });
+
+        if (error) {
+          console.error('Error verifying token hash:', error);
+          throw error;
+        }
+
+        console.log('Token hash verification successful:', data);
+      } else if (accessToken && refreshToken) {
+        // Method 2: Set session with tokens (for older Supabase versions)
         console.log('Setting session with access/refresh tokens');
         const { data, error } = await supabase.auth.setSession({
           access_token: accessToken,
@@ -109,20 +123,6 @@ const Auth: React.FC = () => {
         }
 
         console.log('Session set successfully:', data);
-      } else if (tokenHash) {
-        // Method 2: Verify OTP with token hash
-        console.log('Verifying OTP with token hash');
-        const { data, error } = await supabase.auth.verifyOtp({
-          token_hash: tokenHash,
-          type: 'signup'
-        });
-
-        if (error) {
-          console.error('Error verifying OTP:', error);
-          throw error;
-        }
-
-        console.log('OTP verified successfully:', data);
       } else {
         throw new Error('No valid confirmation tokens found');
       }

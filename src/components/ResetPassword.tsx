@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, Lock, CheckCircle, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Lock, CheckCircle, AlertCircle, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const ResetPassword: React.FC = () => {
@@ -14,6 +14,7 @@ const ResetPassword: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isValidToken, setIsValidToken] = useState(false);
   const [isCheckingToken, setIsCheckingToken] = useState(true);
+  const [tokenInfo, setTokenInfo] = useState<any>(null);
 
   useEffect(() => {
     const checkResetToken = async () => {
@@ -28,48 +29,65 @@ const ResetPassword: React.FC = () => {
         const type = urlParams.get('type') || hashParams.get('type');
         const tokenHash = urlParams.get('token_hash') || hashParams.get('token_hash');
 
-        console.log('Reset password tokens:', {
-          accessToken: accessToken ? 'present' : 'missing',
-          refreshToken: refreshToken ? 'present' : 'missing',
+        console.log('Reset password URL analysis:', {
+          fullUrl: window.location.href,
+          searchParams: location.search,
+          hashParams: location.hash,
+          parsedTokens: {
+            accessToken: accessToken ? 'present' : 'missing',
+            refreshToken: refreshToken ? 'present' : 'missing',
+            type,
+            tokenHash: tokenHash ? 'present' : 'missing'
+          }
+        });
+
+        setTokenInfo({
+          accessToken: !!accessToken,
+          refreshToken: !!refreshToken,
           type,
-          tokenHash: tokenHash ? 'present' : 'missing',
-          fullUrl: window.location.href
+          tokenHash: !!tokenHash
         });
 
         // Check if this is a valid password reset request
-        if (type === 'recovery' && (accessToken || tokenHash)) {
-          if (accessToken && refreshToken) {
-            // Method 1: Direct token approach
-            console.log('Using direct token method');
-            const { error } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken
-            });
-
-            if (error) {
-              console.error('Error setting session with tokens:', error);
-              throw new Error('Invalid or expired reset tokens');
-            }
-          } else if (tokenHash) {
-            // Method 2: Token hash approach (newer Supabase versions)
-            console.log('Using token hash method');
-            const { error } = await supabase.auth.verifyOtp({
+        if (type === 'recovery') {
+          if (tokenHash) {
+            // Method 1: Token hash approach (recommended for newer Supabase versions)
+            console.log('Using token hash verification method');
+            const { data, error } = await supabase.auth.verifyOtp({
               token_hash: tokenHash,
               type: 'recovery'
             });
 
             if (error) {
-              console.error('Error verifying token hash:', error);
-              throw new Error('Invalid or expired reset link');
+              console.error('Token hash verification failed:', error);
+              throw new Error(`Invalid or expired reset link: ${error.message}`);
             }
+
+            console.log('Token hash verification successful:', data);
+            setIsValidToken(true);
+            toast.success('Reset link verified! You can now set your new password.');
+            
+          } else if (accessToken && refreshToken) {
+            // Method 2: Direct token approach (for older Supabase versions)
+            console.log('Using direct token method');
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken
+            });
+
+            if (error) {
+              console.error('Session setup failed:', error);
+              throw new Error(`Invalid or expired reset tokens: ${error.message}`);
+            }
+
+            console.log('Session setup successful:', data);
+            setIsValidToken(true);
+            toast.success('Reset link verified! You can now set your new password.');
+            
           } else {
-            throw new Error('Missing required authentication tokens');
+            throw new Error('Missing required authentication tokens. Please request a new password reset link.');
           }
 
-          // If we get here, the token is valid
-          setIsValidToken(true);
-          toast.success('Reset link verified! You can now set your new password.');
-          
           // Clean up URL parameters for security
           const newUrl = new URL(window.location.href);
           newUrl.search = '';
@@ -78,7 +96,7 @@ const ResetPassword: React.FC = () => {
           
         } else {
           // No valid reset parameters found
-          throw new Error('Invalid password reset link');
+          throw new Error('Invalid password reset link. Please request a new one.');
         }
       } catch (error: any) {
         console.error('Token validation error:', error);
@@ -88,7 +106,7 @@ const ResetPassword: React.FC = () => {
         // Redirect to auth page after a delay
         setTimeout(() => {
           navigate('/auth');
-        }, 3000);
+        }, 5000);
       } finally {
         setIsCheckingToken(false);
       }
@@ -118,30 +136,39 @@ const ResetPassword: React.FC = () => {
     setLoading(true);
 
     try {
+      console.log('Attempting to update password...');
+      
       // Update the user's password
-      const { error } = await supabase.auth.updateUser({
+      const { data, error } = await supabase.auth.updateUser({
         password: password
       });
 
       if (error) {
+        console.error('Password update error:', error);
         throw error;
       }
 
+      console.log('Password update successful:', data);
       toast.success('Password updated successfully! You are now signed in.');
       
-      // Redirect to profile page
-      navigate('/profile');
+      // Small delay to ensure the session is fully established
+      setTimeout(() => {
+        navigate('/profile');
+      }, 1000);
       
     } catch (error: any) {
       console.error('Password reset error:', error);
       
       if (error.message?.includes('session_not_found') || error.message?.includes('Invalid session')) {
         toast.error('Reset session expired. Please request a new password reset link.');
-        navigate('/auth');
+        setTimeout(() => navigate('/auth'), 2000);
       } else if (error.message?.includes('same_password')) {
         toast.error('New password must be different from your current password.');
       } else if (error.message?.includes('Password should be at least')) {
         toast.error('Password must be at least 6 characters long.');
+      } else if (error.message?.includes('Auth session missing')) {
+        toast.error('Authentication session expired. Please request a new reset link.');
+        setTimeout(() => navigate('/auth'), 2000);
       } else {
         toast.error(error.message || 'Failed to reset password. Please try again.');
       }
@@ -153,10 +180,22 @@ const ResetPassword: React.FC = () => {
   if (isCheckingToken) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4">
-        <div className="text-center">
+        <div className="text-center max-w-md">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Verifying reset link...</p>
-          <p className="text-sm text-gray-500 mt-2">This may take a few seconds</p>
+          <p className="text-gray-600 mb-2">Verifying reset link...</p>
+          <p className="text-sm text-gray-500">This may take a few seconds</p>
+          
+          {tokenInfo && (
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-left">
+              <p className="text-blue-800 text-xs font-medium mb-2">Debug Info:</p>
+              <ul className="text-blue-700 text-xs space-y-1">
+                <li>Access Token: {tokenInfo.accessToken ? '✓' : '✗'}</li>
+                <li>Refresh Token: {tokenInfo.refreshToken ? '✓' : '✗'}</li>
+                <li>Token Hash: {tokenInfo.tokenHash ? '✓' : '✗'}</li>
+                <li>Type: {tokenInfo.type || 'missing'}</li>
+              </ul>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -173,20 +212,38 @@ const ResetPassword: React.FC = () => {
           <p className="text-gray-600 mb-6">
             This password reset link is invalid or has expired. Please request a new one.
           </p>
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+          
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 text-left">
             <p className="text-amber-800 text-sm">
               <strong>Common causes:</strong><br />
               • Link has expired (links are valid for 1 hour)<br />
               • Link has already been used<br />
-              • Link was copied incorrectly
+              • Link was copied incorrectly<br />
+              • Email client modified the link
             </p>
           </div>
-          <button
-            onClick={() => navigate('/auth')}
-            className="w-full bg-emerald-600 text-white py-3 px-4 rounded-lg hover:bg-emerald-700 transition-colors"
-          >
-            Request New Reset Link
-          </button>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
+            <p className="text-blue-800 text-sm">
+              <strong>Need help?</strong><br />
+              If you continue having issues, please contact our support team with the error details.
+            </p>
+          </div>
+          
+          <div className="space-y-3">
+            <button
+              onClick={() => navigate('/auth')}
+              className="w-full bg-emerald-600 text-white py-3 px-4 rounded-lg hover:bg-emerald-700 transition-colors"
+            >
+              Request New Reset Link
+            </button>
+            <button
+              onClick={() => navigate('/contact')}
+              className="w-full border border-gray-300 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Contact Support
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -246,11 +303,13 @@ const ResetPassword: React.FC = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   className="appearance-none block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"
                   placeholder="Enter your new password"
+                  disabled={loading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  disabled={loading}
                 >
                   {showPassword ? (
                     <EyeOff className="h-5 w-5 text-gray-400" />
@@ -278,11 +337,13 @@ const ResetPassword: React.FC = () => {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="appearance-none block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"
                   placeholder="Confirm your new password"
+                  disabled={loading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  disabled={loading}
                 >
                   {showConfirmPassword ? (
                     <EyeOff className="h-5 w-5 text-gray-400" />
@@ -320,7 +381,7 @@ const ResetPassword: React.FC = () => {
               >
                 {loading ? (
                   <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    <RefreshCw className="animate-spin h-4 w-4 mr-2" />
                     Updating Password...
                   </div>
                 ) : (
@@ -331,7 +392,7 @@ const ResetPassword: React.FC = () => {
 
             <div className="text-center">
               <p className="text-xs text-gray-500">
-                After updating your password, you'll be automatically signed in to your account.
+                After updating your password, you'll be automatically signed in and redirected to your profile.
               </p>
             </div>
           </form>
