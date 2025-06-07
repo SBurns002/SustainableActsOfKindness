@@ -67,23 +67,52 @@ const Auth: React.FC = () => {
 
     try {
       if (isSignUp) {
+        // For now, disable email confirmation to avoid issues
+        // and sign up users directly
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth?type=signup`,
+            // Disable email confirmation for now
+            emailRedirectTo: `${window.location.origin}/auth-status`,
             data: {
-              email_confirm: true // Enable email confirmation
+              email_confirm: false // Disable email confirmation
             }
           }
         });
 
         if (error) throw error;
 
-        // Show email confirmation message
-        setConfirmationEmail(email);
-        setShowEmailConfirmation(true);
-        toast.success('Please check your email to confirm your account before signing in.');
+        // Check if user was created successfully
+        if (data.user) {
+          // If email confirmation is disabled, user should be able to sign in immediately
+          if (data.user.email_confirmed_at || !data.user.confirmation_sent_at) {
+            // User is confirmed or confirmation is disabled, sign them in
+            const { error: signInError } = await supabase.auth.signInWithPassword({
+              email,
+              password,
+            });
+            
+            if (signInError) {
+              // If sign in fails, it might be because confirmation is still required
+              if (signInError.message.includes('Email not confirmed')) {
+                setConfirmationEmail(email);
+                setShowEmailConfirmation(true);
+                toast.info('Please check your email to confirm your account before signing in.');
+              } else {
+                throw signInError;
+              }
+            } else {
+              toast.success('Welcome! Account created successfully.');
+              navigate('/profile', { state: { isNewUser: true } });
+            }
+          } else {
+            // Email confirmation is required
+            setConfirmationEmail(email);
+            setShowEmailConfirmation(true);
+            toast.success('Please check your email to confirm your account before signing in.');
+          }
+        }
         
       } else {
         // Sign in flow
@@ -94,8 +123,8 @@ const Auth: React.FC = () => {
         
         if (error) throw error;
 
-        // Check if email is confirmed
-        if (data.user && !data.user.email_confirmed_at) {
+        // Check if email is confirmed (only if confirmation is enabled)
+        if (data.user && data.user.confirmation_sent_at && !data.user.email_confirmed_at) {
           toast.error('Please confirm your email address before signing in. Check your inbox for a confirmation link.');
           setLoading(false);
           return;
@@ -165,11 +194,16 @@ const Auth: React.FC = () => {
         }
       } else if (error.message.includes('Email not confirmed')) {
         toast.error('Please check your email and confirm your account before signing in.');
+        // Show the email confirmation screen
+        setConfirmationEmail(email);
+        setShowEmailConfirmation(true);
       } else if (error.message.includes('Signup requires a valid password')) {
         toast.error('Password must be at least 6 characters long.');
       } else if (error.message.includes('User already registered')) {
         toast.error('An account with this email already exists. Please sign in instead.');
         setIsSignUp(false);
+      } else if (error.message.includes('Database error saving new user')) {
+        toast.error('There was an issue creating your account. Please try again or contact support if the problem persists.');
       } else {
         toast.error(error.message || 'An unexpected error occurred. Please try again.');
       }
@@ -338,6 +372,15 @@ const Auth: React.FC = () => {
               <p className="text-gray-600 mb-4">
                 We've sent a confirmation email to <strong>{confirmationEmail}</strong>
               </p>
+              
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-amber-800">
+                  <strong>Important:</strong> If you don't receive the confirmation email within a few minutes, 
+                  your account may have been created without email confirmation enabled. 
+                  Try signing in directly with your credentials.
+                </p>
+              </div>
+              
               <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-6">
                 <p className="text-sm text-emerald-800">
                   <strong>Next steps:</strong>
@@ -348,8 +391,9 @@ const Auth: React.FC = () => {
                   <li>Return here to sign in with your credentials</li>
                 </ol>
               </div>
+              
               <p className="text-sm text-gray-500 mb-6">
-                Didn't receive the email? Check your spam folder or request a new one.
+                Didn't receive the email? Check your spam folder or try signing in directly.
               </p>
               <div className="space-y-3">
                 <button
@@ -357,6 +401,16 @@ const Auth: React.FC = () => {
                   className="w-full flex justify-center py-2 px-4 border border-emerald-600 text-emerald-600 rounded-md shadow-sm text-sm font-medium hover:bg-emerald-50 transition-colors"
                 >
                   Resend Confirmation Email
+                </button>
+                <button
+                  onClick={() => {
+                    resetEmailConfirmationState();
+                    setIsSignUp(false); // Switch to sign in mode
+                    toast.info('Try signing in with your credentials - email confirmation may not be required.');
+                  }}
+                  className="w-full flex justify-center py-2 px-4 border border-blue-600 text-blue-600 rounded-md shadow-sm text-sm font-medium hover:bg-blue-50 transition-colors"
+                >
+                  Try Signing In Instead
                 </button>
                 <button
                   onClick={resetEmailConfirmationState}
@@ -515,7 +569,7 @@ const Auth: React.FC = () => {
         </h2>
         {isSignUp && (
           <p className="mt-2 text-center text-sm text-gray-600">
-            You'll need to confirm your email address before you can sign in
+            Create your account to join our sustainability community
           </p>
         )}
       </div>
