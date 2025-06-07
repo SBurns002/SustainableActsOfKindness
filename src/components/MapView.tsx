@@ -921,6 +921,7 @@ const MapView: React.FC = () => {
     eventDataManager.debugEvent('Testing');
     console.log('Current filtered data features:', filteredData.features.map(f => f.properties.name));
     console.log('Map key:', mapKey);
+    console.log('Filtered data:', filteredData);
   };
 
   // Add debug button (remove in production)

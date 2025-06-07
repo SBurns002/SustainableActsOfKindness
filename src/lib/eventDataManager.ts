@@ -199,12 +199,19 @@ class EventDataManager {
     }
   }
 
-  // Generate coordinates for Boston locations
+  // Generate coordinates for Boston locations with better matching
   private generateCoordinatesFromLocation(location: string): [number, number] {
     const cleanLocation = location.toLowerCase();
     
-    // Boston neighborhood coordinates
+    console.log('Generating coordinates for location:', location);
+    
+    // Boston neighborhood coordinates with more specific matching
     const bostonCoordinates: { [key: string]: [number, number] } = {
+      // Exact matches first
+      'testing': [42.3601, -71.0589], // Specific coordinates for testing events
+      'tesing2': [42.3550, -71.0656], // Different coordinates for second test
+      
+      // Boston neighborhoods
       'back bay': [42.3467, -71.0972],
       'beacon hill': [42.3588, -71.0707],
       'north end': [42.3647, -71.0542],
@@ -235,13 +242,15 @@ class EventDataManager {
       'castle island': [42.3188, -71.0846],
       'boston university': [42.3505, -71.1054],
       'harvard medical': [42.3467, -71.0972],
-      'testing': [42.3601, -71.0589] // Add specific coordinates for testing events
+      
+      // General Boston matches
+      'boston': [42.3601, -71.0589]
     };
 
-    // Find matching neighborhood
-    for (const [neighborhood, coords] of Object.entries(bostonCoordinates)) {
-      if (cleanLocation.includes(neighborhood)) {
-        console.log(`Found coordinates for ${neighborhood}:`, coords);
+    // Try exact matches first
+    for (const [key, coords] of Object.entries(bostonCoordinates)) {
+      if (cleanLocation === key || cleanLocation.includes(key)) {
+        console.log(`Found coordinates for "${key}":`, coords);
         return coords;
       }
     }
@@ -264,6 +273,10 @@ class EventDataManager {
       eventType: event.event_type,
       status: event.status
     });
+
+    // Create a proper polygon around the coordinates
+    const polygonSize = 0.005; // Smaller polygon for better visibility
+    const [lng, lat] = coordinates;
 
     return {
       type: "Feature",
@@ -295,11 +308,11 @@ class EventDataManager {
       geometry: {
         type: "Polygon",
         coordinates: [[
-          [coordinates[0] - 0.01, coordinates[1] + 0.01],
-          [coordinates[0] + 0.01, coordinates[1] + 0.01],
-          [coordinates[0] + 0.01, coordinates[1] - 0.01],
-          [coordinates[0] - 0.01, coordinates[1] - 0.01],
-          [coordinates[0] - 0.01, coordinates[1] + 0.01]
+          [lng - polygonSize, lat + polygonSize],
+          [lng + polygonSize, lat + polygonSize],
+          [lng + polygonSize, lat - polygonSize],
+          [lng - polygonSize, lat - polygonSize],
+          [lng - polygonSize, lat + polygonSize]
         ]]
       }
     };
@@ -484,6 +497,7 @@ class EventDataManager {
     console.log('Found in merged data:', foundInMerged ? 'YES' : 'NO');
     if (foundInMerged) {
       console.log('Event details:', foundInMerged.properties);
+      console.log('Event geometry:', foundInMerged.geometry);
     }
   }
 }
