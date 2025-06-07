@@ -672,7 +672,6 @@ const Profile: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900">
             {isNewUser ? 'Welcome! Complete Your Profile' : 'Profile'}
           </h1>
-          <p className="text-gray-600 mt-2">{userEmail}</p>
           {isNewUser && (
             <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
               <p className="text-emerald-800 text-sm">
@@ -694,6 +693,13 @@ const Profile: React.FC = () => {
               {!isEditingProfile ? (
                 <div className="space-y-4">
                   <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                    <div className="text-gray-900 bg-gray-100 px-3 py-2 rounded border border-gray-300 cursor-not-allowed">
+                      {userEmail}
+                    </div>
+                  </div>
+                  
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
                     <div className="text-gray-900 bg-gray-100 px-3 py-2 rounded border border-gray-300 cursor-not-allowed">
                       {userProfile?.first_name || 'Not provided'}
@@ -712,6 +718,14 @@ const Profile: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                    <div className="text-gray-900 bg-gray-100 px-3 py-2 rounded border border-gray-300 cursor-not-allowed">
+                      {userEmail}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Email address cannot be changed</p>
+                  </div>
+                  
                   <div>
                     <label htmlFor="first_name" className="block text-sm font-medium text-gray-700 mb-1">
                       First Name
