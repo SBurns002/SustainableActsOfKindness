@@ -57,6 +57,40 @@ interface AdminUser {
   assigned_by_email: string;
 }
 
+// Boston neighborhoods and areas
+const BOSTON_LOCATIONS = [
+  'Back Bay, Boston, MA',
+  'Beacon Hill, Boston, MA',
+  'North End, Boston, MA',
+  'South End, Boston, MA',
+  'Downtown Boston, MA',
+  'Financial District, Boston, MA',
+  'Chinatown, Boston, MA',
+  'South Boston, MA',
+  'East Boston, MA',
+  'Charlestown, Boston, MA',
+  'Jamaica Plain, Boston, MA',
+  'Roxbury, Boston, MA',
+  'Dorchester, Boston, MA',
+  'Mattapan, Boston, MA',
+  'Roslindale, Boston, MA',
+  'West Roxbury, Boston, MA',
+  'Hyde Park, Boston, MA',
+  'Allston, Boston, MA',
+  'Brighton, Boston, MA',
+  'Fenway, Boston, MA',
+  'Mission Hill, Boston, MA',
+  'Boston Common, Boston, MA',
+  'Public Garden, Boston, MA',
+  'Boston Harbor, Boston, MA',
+  'Charles River Esplanade, Boston, MA',
+  'Franklin Park, Boston, MA',
+  'Arnold Arboretum, Boston, MA',
+  'Castle Island, Boston, MA',
+  'Boston University Area, Boston, MA',
+  'Harvard Medical Area, Boston, MA'
+];
+
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [events, setEvents] = useState<Event[]>([]);
@@ -231,6 +265,12 @@ const AdminDashboard: React.FC = () => {
       toast.error('User not authenticated');
       return;
     }
+
+    // Validate that location is in Boston
+    if (!formData.location || !formData.location.toLowerCase().includes('boston')) {
+      toast.error('Location must be in Boston, Massachusetts');
+      return;
+    }
     
     try {
       const eventData = {
@@ -254,7 +294,7 @@ const AdminDashboard: React.FC = () => {
           });
 
         if (error) throw error;
-        toast.success('Event created successfully');
+        toast.success('Event created successfully and added to map');
       }
 
       setShowEventForm(false);
@@ -262,8 +302,14 @@ const AdminDashboard: React.FC = () => {
       resetForm();
       fetchEvents();
       
-      // Refresh the event data manager to update all components
+      // Refresh the event data manager to update all components including the map
       await eventDataManager.refresh();
+      
+      // Notify that the map should update
+      window.dispatchEvent(new CustomEvent('adminEventCreated', { 
+        detail: { message: 'New event added to map' } 
+      }));
+      
     } catch (error) {
       console.error('Error saving event:', error);
       toast.error('Failed to save event');
@@ -418,7 +464,7 @@ const AdminDashboard: React.FC = () => {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Administrator Dashboard</h1>
-            <p className="text-gray-600 mt-2">Manage sustainability events and community activities</p>
+            <p className="text-gray-600 mt-2">Manage sustainability events in Boston, Massachusetts</p>
           </div>
           <div className="flex space-x-4">
             <button
@@ -444,7 +490,7 @@ const AdminDashboard: React.FC = () => {
               className="bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-700 transition-colors flex items-center space-x-2"
             >
               <Plus className="w-5 h-5" />
-              <span>Add Event</span>
+              <span>Add Boston Event</span>
             </button>
           </div>
         </div>
@@ -564,7 +610,7 @@ const AdminDashboard: React.FC = () => {
               <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-gray-900 mb-2">No events found</h3>
               <p className="text-gray-600 mb-4">
-                {events.length === 0 ? 'Get started by creating your first event' : 'Try adjusting your search filters'}
+                {events.length === 0 ? 'Get started by creating your first Boston event' : 'Try adjusting your search filters'}
               </p>
             </div>
           ) : (
@@ -747,7 +793,7 @@ const AdminDashboard: React.FC = () => {
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">
-                  {editingEvent ? 'Edit Event' : 'Create New Event'}
+                  {editingEvent ? 'Edit Boston Event' : 'Create New Boston Event'}
                 </h2>
                 <button
                   onClick={() => {
@@ -860,22 +906,32 @@ const AdminDashboard: React.FC = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Location *</label>
-                    <input
-                      type="text"
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Boston Location *</label>
+                    <select
                       required
                       value={formData.location}
                       onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
                       className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                    />
+                    >
+                      <option value="">Select a Boston location...</option>
+                      {BOSTON_LOCATIONS.map((location) => (
+                        <option key={location} value={location}>
+                          {location}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Events are currently restricted to Boston, Massachusetts locations only
+                    </p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Specific Address</label>
                     <input
                       type="text"
                       value={formData.address}
                       onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                      placeholder="e.g., 123 Main St, Boston, MA 02101"
                       className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     />
                   </div>
@@ -984,7 +1040,7 @@ const AdminDashboard: React.FC = () => {
                     className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center space-x-2"
                   >
                     <Save className="w-4 h-4" />
-                    <span>{editingEvent ? 'Update Event' : 'Create Event'}</span>
+                    <span>{editingEvent ? 'Update Event' : 'Create Event & Add to Map'}</span>
                   </button>
                 </div>
               </form>

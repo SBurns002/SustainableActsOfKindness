@@ -194,68 +194,52 @@ class EventDataManager {
     }
   }
 
-  // Generate default coordinates for admin-created events based on location
+  // Generate coordinates for Boston locations
   private generateCoordinatesFromLocation(location: string): [number, number] {
     const cleanLocation = location.toLowerCase();
     
-    // Default coordinates for common Massachusetts areas
-    if (cleanLocation.includes('boston')) return [42.3601, -71.0589];
-    if (cleanLocation.includes('cambridge')) return [42.3736, -71.1097];
-    if (cleanLocation.includes('salem')) return [42.5195, -70.8967];
-    if (cleanLocation.includes('somerville')) return [42.3875, -71.0995];
-    if (cleanLocation.includes('quincy')) return [42.2529, -71.0023];
-    if (cleanLocation.includes('newton')) return [42.3370, -71.2092];
-    if (cleanLocation.includes('brookline')) return [42.3318, -71.1211];
-    if (cleanLocation.includes('medford')) return [42.4184, -71.1061];
-    if (cleanLocation.includes('malden')) return [42.4251, -71.0662];
-    if (cleanLocation.includes('lynn')) return [42.4668, -70.9495];
-    if (cleanLocation.includes('lowell')) return [42.6334, -71.3162];
-    if (cleanLocation.includes('brockton')) return [42.0834, -71.0184];
-    if (cleanLocation.includes('fall river')) return [41.7015, -71.1550];
-    if (cleanLocation.includes('lawrence')) return [42.7070, -71.1631];
-    if (cleanLocation.includes('waltham')) return [42.3765, -71.2356];
-    if (cleanLocation.includes('framingham')) return [42.2793, -71.4162];
-    if (cleanLocation.includes('haverhill')) return [42.7762, -71.0773];
-    if (cleanLocation.includes('peabody')) return [42.5278, -70.9286];
-    if (cleanLocation.includes('revere')) return [42.4085, -71.0119];
-    if (cleanLocation.includes('taunton')) return [41.9001, -71.0897];
-    if (cleanLocation.includes('chicopee')) return [42.1487, -72.6078];
-    if (cleanLocation.includes('weymouth')) return [42.2180, -70.9395];
-    if (cleanLocation.includes('methuen')) return [42.7262, -71.1909];
-    if (cleanLocation.includes('barnstable')) return [41.7003, -70.3002];
-    if (cleanLocation.includes('pittsfield')) return [42.4501, -73.2453];
-    if (cleanLocation.includes('springfield')) return [42.1015, -72.5898];
-    if (cleanLocation.includes('holyoke')) return [42.2043, -72.6162];
-    if (cleanLocation.includes('worcester')) return [42.2626, -71.8023];
-    if (cleanLocation.includes('attleboro')) return [41.9465, -71.2928];
-    if (cleanLocation.includes('concord')) return [42.4604, -71.3489];
-    if (cleanLocation.includes('lexington')) return [42.4430, -71.2289];
-    if (cleanLocation.includes('wellesley')) return [42.2968, -71.2962];
-    if (cleanLocation.includes('needham')) return [42.2835, -71.2356];
-    if (cleanLocation.includes('arlington')) return [42.4153, -71.1564];
-    if (cleanLocation.includes('belmont')) return [42.3959, -71.1786];
-    if (cleanLocation.includes('watertown')) return [42.3709, -71.1828];
-    if (cleanLocation.includes('natick')) return [42.2834, -71.3495];
-    if (cleanLocation.includes('dedham')) return [42.2418, -71.1661];
-    if (cleanLocation.includes('milton')) return [42.2496, -71.0662];
-    if (cleanLocation.includes('braintree')) return [42.2057, -70.9999];
-    if (cleanLocation.includes('randolph')) return [42.1626, -71.0411];
-    if (cleanLocation.includes('stoughton')) return [42.1251, -71.1023];
-    if (cleanLocation.includes('canton')) return [42.1584, -71.1448];
-    if (cleanLocation.includes('westwood')) return [42.2126, -71.2245];
-    if (cleanLocation.includes('norwood')) return [42.1945, -71.1995];
-    if (cleanLocation.includes('walpole')) return [42.1417, -71.2495];
-    if (cleanLocation.includes('medfield')) return [42.1876, -71.3062];
-    if (cleanLocation.includes('millis')) return [42.1626, -71.3578];
-    if (cleanLocation.includes('franklin')) return [42.0834, -71.3967];
-    if (cleanLocation.includes('foxborough')) return [42.0654, -71.2478];
-    if (cleanLocation.includes('mansfield')) return [42.0334, -71.2189];
-    if (cleanLocation.includes('norton')) return [41.9667, -71.1870];
-    if (cleanLocation.includes('easton')) return [42.0251, -71.1286];
-    if (cleanLocation.includes('sharon')) return [42.1084, -71.1786];
-    if (cleanLocation.includes('carver')) return [41.8834, -70.7648];
+    // Boston neighborhood coordinates
+    const bostonCoordinates: { [key: string]: [number, number] } = {
+      'back bay': [42.3467, -71.0972],
+      'beacon hill': [42.3588, -71.0707],
+      'north end': [42.3647, -71.0542],
+      'south end': [42.3467, -71.0972],
+      'downtown': [42.3601, -71.0589],
+      'financial district': [42.3601, -71.0589],
+      'chinatown': [42.3467, -71.0972],
+      'south boston': [42.3188, -71.0846],
+      'east boston': [42.3188, -71.0846],
+      'charlestown': [42.3875, -71.0995],
+      'jamaica plain': [42.3188, -71.0846],
+      'roxbury': [42.3188, -71.0846],
+      'dorchester': [42.3188, -71.0846],
+      'mattapan': [42.3188, -71.0846],
+      'roslindale': [42.3188, -71.0846],
+      'west roxbury': [42.3188, -71.0846],
+      'hyde park': [42.3188, -71.0846],
+      'allston': [42.3188, -71.0846],
+      'brighton': [42.3188, -71.0846],
+      'fenway': [42.3467, -71.0972],
+      'mission hill': [42.3188, -71.0846],
+      'boston common': [42.3550, -71.0656],
+      'public garden': [42.3541, -71.0711],
+      'boston harbor': [42.3601, -71.0589],
+      'charles river esplanade': [42.3601, -71.0589],
+      'franklin park': [42.3188, -71.0846],
+      'arnold arboretum': [42.3188, -71.0846],
+      'castle island': [42.3188, -71.0846],
+      'boston university': [42.3505, -71.1054],
+      'harvard medical': [42.3467, -71.0972]
+    };
+
+    // Find matching neighborhood
+    for (const [neighborhood, coords] of Object.entries(bostonCoordinates)) {
+      if (cleanLocation.includes(neighborhood)) {
+        return coords;
+      }
+    }
     
-    // Default to Boston if no match
+    // Default to Boston center if no specific match
     return [42.3601, -71.0589];
   }
 
@@ -347,7 +331,7 @@ class EventDataManager {
       return feature;
     });
 
-    // Add admin-created events as new features
+    // Add admin-created events as new features (only active ones)
     const adminFeatures = Array.from(this.adminCreatedEvents.values())
       .filter(event => event.status === 'active') // Only show active events
       .map(event => this.adminEventToGeoJSONFeature(event));
