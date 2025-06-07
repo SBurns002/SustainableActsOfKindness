@@ -695,7 +695,7 @@ const Profile: React.FC = () => {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                    <div className="text-gray-900 bg-white px-3 py-2 rounded border border-gray-200">
+                    <div className="text-gray-900 bg-gray-100 px-3 py-2 rounded border border-gray-300 cursor-not-allowed">
                       {userProfile?.first_name || 'Not provided'}
                     </div>
                   </div>
