@@ -294,6 +294,39 @@ const Auth: React.FC = () => {
     }
   };
 
+  const checkUserExists = async (email: string): Promise<boolean> => {
+    try {
+      // Try to sign in with a dummy password to check if user exists
+      // This will fail but give us information about whether the user exists
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: 'dummy_password_to_check_user_existence'
+      });
+
+      if (error) {
+        // If the error is about invalid credentials, the user exists
+        if (error.message.includes('Invalid login credentials')) {
+          return true;
+        }
+        // If the error is about user not found or similar, user doesn't exist
+        if (error.message.includes('User not found') || 
+            error.message.includes('Invalid email') ||
+            error.message.includes('Email not confirmed')) {
+          return false;
+        }
+        // For other errors, we'll assume user exists to be safe
+        return true;
+      }
+      
+      // If no error (which shouldn't happen with dummy password), assume user exists
+      return true;
+    } catch (error) {
+      console.error('Error checking user existence:', error);
+      // On any unexpected error, assume user exists to be safe
+      return true;
+    }
+  };
+
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -310,6 +343,15 @@ const Auth: React.FC = () => {
     setResetAttempted(true);
 
     try {
+      // First check if the user exists
+      const userExists = await checkUserExists(resetEmail.trim());
+      
+      if (!userExists) {
+        toast.error('No account found with this email address. Please sign up for an account first.');
+        setResetLoading(false);
+        return;
+      }
+
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
         // Use the production URL for password reset redirect
         redirectTo: `${getAppUrl()}/reset-password`,
@@ -332,7 +374,7 @@ const Auth: React.FC = () => {
       console.error('Password reset error:', error);
       
       if (error.message.includes('Email not found')) {
-        toast.error('No account found with this email address.');
+        toast.error('No account found with this email address. Please sign up for an account first.');
       } else if (error.message.includes('Failed to fetch')) {
         toast.error('Unable to connect to authentication service. Please check your internet connection.');
       } else if (error.message.includes('rate_limit') || error.message.includes('too_many_requests')) {
@@ -614,7 +656,7 @@ const Auth: React.FC = () => {
                     {resetLoading ? (
                       <div className="flex items-center">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Sending Reset Email...
+                        Checking Account...
                       </div>
                     ) : (
                       'Send Password Reset Email'
