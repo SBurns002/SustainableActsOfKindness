@@ -17,7 +17,18 @@ const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
 
   const checkAdminAccess = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        console.error('Auth error:', userError);
+        // If user doesn't exist in database, clear the session
+        if (userError.message?.includes('User from sub claim in JWT does not exist')) {
+          await supabase.auth.signOut();
+        }
+        setIsAdmin(false);
+        setLoading(false);
+        return;
+      }
       
       if (!user) {
         setIsAdmin(false);
@@ -40,6 +51,8 @@ const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
       }
     } catch (error) {
       console.error('Error checking admin access:', error);
+      // Clear invalid session on any unexpected error
+      await supabase.auth.signOut();
       setIsAdmin(false);
     } finally {
       setLoading(false);

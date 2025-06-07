@@ -257,6 +257,10 @@ const Profile: React.FC = () => {
       
       if (userError) {
         console.error('Error getting user:', userError);
+        // If user doesn't exist in database, clear the session
+        if (userError.message?.includes('User from sub claim in JWT does not exist')) {
+          await supabase.auth.signOut();
+        }
         navigate('/auth');
         return;
       }
@@ -317,7 +321,10 @@ const Profile: React.FC = () => {
 
     } catch (error) {
       console.error('Error fetching user data:', error);
-      toast.error('Failed to load profile data');
+      // Clear invalid session on any unexpected error
+      await supabase.auth.signOut();
+      toast.error('Session expired. Please sign in again.');
+      navigate('/auth');
     } finally {
       setLoading(false);
       setInitialLoadComplete(true);

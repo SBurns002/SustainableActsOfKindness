@@ -26,13 +26,36 @@ const Header: React.FC = () => {
 
     // Get initial auth state
     const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setIsAuthenticated(!!user);
-      setUserEmail(user?.email || null);
-      
-      if (user) {
-        checkUpcomingEvents(user.id);
-        checkAdminStatus(user.id);
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        
+        if (error) {
+          console.error('Auth error:', error);
+          // If user doesn't exist in database, clear the session
+          if (error.message?.includes('User from sub claim in JWT does not exist')) {
+            await supabase.auth.signOut();
+          }
+          setIsAuthenticated(false);
+          setUserEmail(null);
+          setHasUpcomingEvents(false);
+          setIsAdmin(false);
+          return;
+        }
+        
+        setIsAuthenticated(!!user);
+        setUserEmail(user?.email || null);
+        
+        if (user) {
+          checkUpcomingEvents(user.id);
+          checkAdminStatus(user.id);
+        }
+      } catch (error) {
+        console.error('Unexpected auth error:', error);
+        await supabase.auth.signOut();
+        setIsAuthenticated(false);
+        setUserEmail(null);
+        setHasUpcomingEvents(false);
+        setIsAdmin(false);
       }
     };
     checkAuth();
