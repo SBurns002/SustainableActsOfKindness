@@ -161,18 +161,44 @@ const Contact: React.FC = () => {
               <div className="mt-8 pt-6 border-t border-gray-200">
                 <h3 className="font-semibold text-gray-900 mb-4">Quick Links</h3>
                 <div className="space-y-2">
-                  <a href="#" className="block text-emerald-600 hover:text-emerald-700 text-sm">
-                    Frequently Asked Questions
-                  </a>
-                  <a href="#" className="block text-emerald-600 hover:text-emerald-700 text-sm">
-                    Event Guidelines
-                  </a>
-                  <a href="#" className="block text-emerald-600 hover:text-emerald-700 text-sm">
-                    Volunteer Opportunities
-                  </a>
-                  <a href="#" className="block text-emerald-600 hover:text-emerald-700 text-sm">
-                    Partnership Information
-                  </a>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400 text-sm cursor-not-allowed">
+                      Frequently Asked Questions
+                    </span>
+                    <span className="text-xs text-amber-600 bg-amber-100 px-2 py-1 rounded-full">
+                      Coming Soon
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400 text-sm cursor-not-allowed">
+                      Event Guidelines
+                    </span>
+                    <span className="text-xs text-amber-600 bg-amber-100 px-2 py-1 rounded-full">
+                      Coming Soon
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400 text-sm cursor-not-allowed">
+                      Volunteer Opportunities
+                    </span>
+                    <span className="text-xs text-amber-600 bg-amber-100 px-2 py-1 rounded-full">
+                      Coming Soon
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400 text-sm cursor-not-allowed">
+                      Partnership Information
+                    </span>
+                    <span className="text-xs text-amber-600 bg-amber-100 px-2 py-1 rounded-full">
+                      Coming Soon
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-blue-800 text-xs">
+                    <strong>Note:</strong> These resources are currently being developed. 
+                    Please use the contact form for any immediate questions.
+                  </p>
                 </div>
               </div>
             </div>
