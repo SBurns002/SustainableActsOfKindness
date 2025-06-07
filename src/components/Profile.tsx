@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { eventDataManager } from '../lib/eventDataManager';
-import { Calendar, Bell, Settings, Loader, Clock, CheckCircle, AlertCircle, UserMinus, Eye, Plus, Shield, Smartphone, Key, User, MapPin, Edit, Save, X } from 'lucide-react';
+import { Calendar, Bell, Settings, Loader, Clock, CheckCircle, AlertCircle, UserMinus, Eye, Plus, Shield, Smartphone, Key, User, Edit, Save, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import MFASetup from './MFASetup';
 import MFADisable from './MFADisable';
@@ -38,7 +38,6 @@ interface UserProfile {
   id: string;
   user_id: string;
   first_name: string | null;
-  zip_code: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -61,8 +60,7 @@ const Profile: React.FC = () => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({
-    first_name: '',
-    zip_code: ''
+    first_name: ''
   });
   const [profileSaving, setProfileSaving] = useState(false);
 
@@ -124,15 +122,13 @@ const Profile: React.FC = () => {
       if (profile) {
         setUserProfile(profile);
         setProfileForm({
-          first_name: profile.first_name || '',
-          zip_code: profile.zip_code || ''
+          first_name: profile.first_name || ''
         });
       } else {
         // No profile exists yet - for new users, start in edit mode
         setUserProfile(null);
         setProfileForm({
-          first_name: '',
-          zip_code: ''
+          first_name: ''
         });
         
         // If this is a new user, automatically start in edit mode
@@ -148,19 +144,11 @@ const Profile: React.FC = () => {
   const saveUserProfile = async () => {
     if (!currentUser) return;
 
-    // Validate Boston zip code
-    const zipCode = profileForm.zip_code.trim();
-    if (zipCode && !zipCode.startsWith('021') && !zipCode.startsWith('022')) {
-      toast.error('Please enter a Boston area zip code (021xx or 022xx)');
-      return;
-    }
-
     setProfileSaving(true);
     try {
       const profileData = {
         user_id: currentUser.id,
-        first_name: profileForm.first_name.trim() || null,
-        zip_code: zipCode || null
+        first_name: profileForm.first_name.trim() || null
       };
 
       if (userProfile) {
@@ -189,16 +177,9 @@ const Profile: React.FC = () => {
       setIsEditingProfile(false);
       toast.success('Profile saved successfully!');
 
-      // If this is a new user and they provided a zip code, redirect to map
-      if (isNewUser && zipCode) {
-        toast.success(`Welcome! Redirecting to events in ${zipCode}...`);
-        // Store zip code in localStorage for the map to use
-        localStorage.setItem('userZipCode', zipCode);
-        // Clear the new user state and redirect
-        navigate('/', { replace: true });
-      } else if (isNewUser) {
-        // New user but no zip code provided - still redirect to map
-        toast.success('Welcome! You can explore events and update your location preferences anytime.');
+      // If this is a new user, redirect to map
+      if (isNewUser) {
+        toast.success('Welcome! You can now explore environmental events in Massachusetts.');
         navigate('/', { replace: true });
       }
     } catch (error: any) {
@@ -695,7 +676,7 @@ const Profile: React.FC = () => {
           {isNewUser && (
             <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
               <p className="text-emerald-800 text-sm">
-                <strong>Welcome to Sustainable Acts of Kindness!</strong> Please add your information below to get started with finding environmental events in Boston.
+                <strong>Welcome to Sustainable Acts of Kindness!</strong> Please add your information below to get started with finding environmental events in Massachusetts.
               </p>
             </div>
           )}
@@ -712,21 +693,10 @@ const Profile: React.FC = () => {
             <div className="bg-gray-50 rounded-lg p-6">
               {!isEditingProfile ? (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                      <div className="text-gray-900 bg-white px-3 py-2 rounded border border-gray-200">
-                        {userProfile?.first_name || 'Not provided'}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Boston Area Zip Code</label>
-                      <div className="flex items-center space-x-2">
-                        <MapPin className="w-4 h-4 text-gray-400" />
-                        <div className="text-gray-900 bg-white px-3 py-2 rounded border border-gray-200 flex-1">
-                          {userProfile?.zip_code || 'Not provided'}
-                        </div>
-                      </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                    <div className="text-gray-900 bg-white px-3 py-2 rounded border border-gray-200">
+                      {userProfile?.first_name || 'Not provided'}
                     </div>
                   </div>
                   
@@ -742,43 +712,18 @@ const Profile: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label htmlFor="first_name" className="block text-sm font-medium text-gray-700 mb-1">
-                        First Name
-                      </label>
-                      <input
-                        type="text"
-                        id="first_name"
-                        value={profileForm.first_name}
-                        onChange={(e) => setProfileForm(prev => ({ ...prev, first_name: e.target.value }))}
-                        placeholder="Enter your first name"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="zip_code" className="block text-sm font-medium text-gray-700 mb-1">
-                        Boston Area Zip Code
-                      </label>
-                      <div className="relative">
-                        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                        <input
-                          type="text"
-                          id="zip_code"
-                          value={profileForm.zip_code}
-                          onChange={(e) => setProfileForm(prev => ({ ...prev, zip_code: e.target.value }))}
-                          placeholder="Enter Boston zip code (021xx, 022xx)"
-                          className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                          maxLength={5}
-                        />
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {isNewUser 
-                          ? "We'll show you events in this area and redirect you to the map"
-                          : "We'll show you events in this area when you visit the map"
-                        }
-                      </p>
-                    </div>
+                  <div>
+                    <label htmlFor="first_name" className="block text-sm font-medium text-gray-700 mb-1">
+                      First Name
+                    </label>
+                    <input
+                      type="text"
+                      id="first_name"
+                      value={profileForm.first_name}
+                      onChange={(e) => setProfileForm(prev => ({ ...prev, first_name: e.target.value }))}
+                      placeholder="Enter your first name"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    />
                   </div>
                   
                   <div className="flex justify-end space-x-3">
@@ -787,8 +732,7 @@ const Profile: React.FC = () => {
                         onClick={() => {
                           setIsEditingProfile(false);
                           setProfileForm({
-                            first_name: userProfile?.first_name || '',
-                            zip_code: userProfile?.zip_code || ''
+                            first_name: userProfile?.first_name || ''
                           });
                         }}
                         className="flex items-center space-x-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
