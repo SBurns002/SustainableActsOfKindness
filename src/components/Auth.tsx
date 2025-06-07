@@ -32,10 +32,9 @@ const Auth: React.FC = () => {
       return window.location.origin;
     }
     
-    // Production environment - you can customize this
-    // For now, we'll use the current origin, but you can hardcode your production URL here
-    // Example: return 'https://yourdomain.com';
-    return window.location.origin;
+    // Production environment - hardcode your production URL here
+    // Replace this with your actual Netlify URL
+    return 'https://gentle-madeleine-5ec626.netlify.app';
   };
 
   // Check URL parameters on component mount
@@ -98,7 +97,7 @@ const Auth: React.FC = () => {
           email,
           password,
           options: {
-            // Use the current app URL for email confirmation redirect
+            // Use the production URL for email confirmation redirect
             emailRedirectTo: `${getAppUrl()}/auth?type=signup`,
             data: {
               // Enable email confirmation
@@ -242,6 +241,7 @@ const Auth: React.FC = () => {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        // Use the production URL for password reset redirect
         redirectTo: `${getAppUrl()}/reset-password`,
         data: {
           app_name: 'Sustainable Acts of Kindness',

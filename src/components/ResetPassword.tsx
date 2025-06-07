@@ -25,10 +25,9 @@ const ResetPassword: React.FC = () => {
       return window.location.origin;
     }
     
-    // Production environment - you can customize this
-    // For now, we'll use the current origin, but you can hardcode your production URL here
-    // Example: return 'https://yourdomain.com';
-    return window.location.origin;
+    // Production environment - hardcode your production URL here
+    // Replace this with your actual Netlify URL
+    return 'https://gentle-madeleine-5ec626.netlify.app';
   };
 
   useEffect(() => {
