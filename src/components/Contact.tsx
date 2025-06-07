@@ -122,13 +122,17 @@ const Contact: React.FC = () => {
               
               <div className="space-y-6">
                 <div className="flex items-start space-x-4">
-                  <div className="bg-emerald-100 p-3 rounded-lg">
+                  <div className="bg-emerald-100 p-3 rounded-lg flex-shrink-0">
                     <Mail className="w-6 h-6 text-emerald-600" />
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">Email Us</h3>
-                    <p className="text-gray-600">admin@sustainableactsofkindness.org</p>
-                    <p className="text-sm text-gray-500 mt-1">We typically respond within 24 hours</p>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 mb-2">Email Us</h3>
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-3">
+                      <p className="text-gray-900 font-medium break-all">
+                        admin@sustainableactsofkindness.org
+                      </p>
+                    </div>
+                    <p className="text-sm text-gray-500">We typically respond within 24 hours</p>
                   </div>
                 </div>
 
