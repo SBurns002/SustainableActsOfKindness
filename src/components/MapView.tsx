@@ -1132,7 +1132,7 @@ const MapView: React.FC = () => {
       {/* Map container */}
       <div className="flex-1">
         <MapContainer
-          key={`${mapKey}-${mapCenter[0]}-${mapCenter[1]}`}
+          key={`map-${mapKey}-${mapCenter[0]}-${mapCenter[1]}`}
           center={mapCenter}
           zoom={mapZoom}
           className="w-full h-full"
@@ -1144,14 +1144,21 @@ const MapView: React.FC = () => {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           
-          {filteredData.features.map((feature: any, index: number) => (
-            <GeoJSON
-              key={`${feature.properties.name}-${index}-${feature.properties.updated_at || 'static'}-${mapKey}`}
-              data={feature}
-              style={getFeatureStyle}
-              onEachFeature={onEachFeature}
-            />
-          ))}
+          {filteredData.features.map((feature: any, index: number) => {
+            // Create a unique key that includes the feature name, index, and map key
+            const uniqueKey = `${feature.properties.name}-${index}-${feature.properties.id || 'static'}-${mapKey}`;
+            
+            console.log(`Rendering GeoJSON feature: ${feature.properties.name} with key: ${uniqueKey}`);
+            
+            return (
+              <GeoJSON
+                key={uniqueKey}
+                data={feature}
+                style={getFeatureStyle}
+                onEachFeature={onEachFeature}
+              />
+            );
+          })}
         </MapContainer>
       </div>
       
