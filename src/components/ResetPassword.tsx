@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { ArrowLeft, Lock, CheckCircle, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const ResetPassword: React.FC = () => {
-  const [searchParams] = useSearchParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -15,53 +15,87 @@ const ResetPassword: React.FC = () => {
   const [isValidToken, setIsValidToken] = useState(false);
   const [isCheckingToken, setIsCheckingToken] = useState(true);
 
-  // Get the current application URL for redirects
-  const getAppUrl = () => {
-    // Check if we're in production by looking at the hostname
-    const hostname = window.location.hostname;
-    
-    // Development environments
-    if (hostname === 'localhost' || hostname.includes('webcontainer') || hostname.includes('127.0.0.1')) {
-      return window.location.origin;
-    }
-    
-    // Production environment - hardcode your production URL here
-    // Replace this with your actual Netlify URL
-    return 'https://gentle-madeleine-5ec626.netlify.app';
-  };
-
   useEffect(() => {
-    // Check if we have the required tokens for password reset
-    const accessToken = searchParams.get('access_token');
-    const refreshToken = searchParams.get('refresh_token');
-    const type = searchParams.get('type');
+    const checkResetToken = async () => {
+      try {
+        // Parse URL parameters from both search params and hash
+        const urlParams = new URLSearchParams(location.search);
+        const hashParams = new URLSearchParams(location.hash.substring(1));
+        
+        // Check for tokens in both locations (Supabase can send them either way)
+        const accessToken = urlParams.get('access_token') || hashParams.get('access_token');
+        const refreshToken = urlParams.get('refresh_token') || hashParams.get('refresh_token');
+        const type = urlParams.get('type') || hashParams.get('type');
+        const tokenHash = urlParams.get('token_hash') || hashParams.get('token_hash');
 
-    if (type === 'recovery' && accessToken && refreshToken) {
-      // Valid password reset link
-      setIsValidToken(true);
-      setIsCheckingToken(false);
-      
-      // Set the session with the tokens from the URL
-      supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken
-      }).then(({ error }) => {
-        if (error) {
-          console.error('Error setting session:', error);
-          toast.error('Invalid or expired reset link. Please request a new one.');
-          navigate('/auth');
+        console.log('Reset password tokens:', {
+          accessToken: accessToken ? 'present' : 'missing',
+          refreshToken: refreshToken ? 'present' : 'missing',
+          type,
+          tokenHash: tokenHash ? 'present' : 'missing',
+          fullUrl: window.location.href
+        });
+
+        // Check if this is a valid password reset request
+        if (type === 'recovery' && (accessToken || tokenHash)) {
+          if (accessToken && refreshToken) {
+            // Method 1: Direct token approach
+            console.log('Using direct token method');
+            const { error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken
+            });
+
+            if (error) {
+              console.error('Error setting session with tokens:', error);
+              throw new Error('Invalid or expired reset tokens');
+            }
+          } else if (tokenHash) {
+            // Method 2: Token hash approach (newer Supabase versions)
+            console.log('Using token hash method');
+            const { error } = await supabase.auth.verifyOtp({
+              token_hash: tokenHash,
+              type: 'recovery'
+            });
+
+            if (error) {
+              console.error('Error verifying token hash:', error);
+              throw new Error('Invalid or expired reset link');
+            }
+          } else {
+            throw new Error('Missing required authentication tokens');
+          }
+
+          // If we get here, the token is valid
+          setIsValidToken(true);
+          toast.success('Reset link verified! You can now set your new password.');
+          
+          // Clean up URL parameters for security
+          const newUrl = new URL(window.location.href);
+          newUrl.search = '';
+          newUrl.hash = '';
+          window.history.replaceState({}, '', newUrl.toString());
+          
+        } else {
+          // No valid reset parameters found
+          throw new Error('Invalid password reset link');
         }
-      });
-    } else {
-      // Invalid or missing tokens
-      setIsValidToken(false);
-      setIsCheckingToken(false);
-      toast.error('Invalid password reset link. Please request a new one.');
-      setTimeout(() => {
-        navigate('/auth');
-      }, 3000);
-    }
-  }, [searchParams, navigate]);
+      } catch (error: any) {
+        console.error('Token validation error:', error);
+        setIsValidToken(false);
+        toast.error(error.message || 'Invalid or expired reset link');
+        
+        // Redirect to auth page after a delay
+        setTimeout(() => {
+          navigate('/auth');
+        }, 3000);
+      } finally {
+        setIsCheckingToken(false);
+      }
+    };
+
+    checkResetToken();
+  }, [location, navigate]);
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,6 +118,7 @@ const ResetPassword: React.FC = () => {
     setLoading(true);
 
     try {
+      // Update the user's password
       const { error } = await supabase.auth.updateUser({
         password: password
       });
@@ -94,24 +129,19 @@ const ResetPassword: React.FC = () => {
 
       toast.success('Password updated successfully! You are now signed in.');
       
-      // Clear the URL parameters
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.delete('access_token');
-      newUrl.searchParams.delete('refresh_token');
-      newUrl.searchParams.delete('type');
-      window.history.replaceState({}, '', newUrl.toString());
-      
-      // Redirect to profile or home page
+      // Redirect to profile page
       navigate('/profile');
       
     } catch (error: any) {
       console.error('Password reset error:', error);
       
-      if (error.message?.includes('session_not_found')) {
+      if (error.message?.includes('session_not_found') || error.message?.includes('Invalid session')) {
         toast.error('Reset session expired. Please request a new password reset link.');
         navigate('/auth');
       } else if (error.message?.includes('same_password')) {
         toast.error('New password must be different from your current password.');
+      } else if (error.message?.includes('Password should be at least')) {
+        toast.error('Password must be at least 6 characters long.');
       } else {
         toast.error(error.message || 'Failed to reset password. Please try again.');
       }
@@ -126,6 +156,7 @@ const ResetPassword: React.FC = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Verifying reset link...</p>
+          <p className="text-sm text-gray-500 mt-2">This may take a few seconds</p>
         </div>
       </div>
     );
@@ -142,11 +173,19 @@ const ResetPassword: React.FC = () => {
           <p className="text-gray-600 mb-6">
             This password reset link is invalid or has expired. Please request a new one.
           </p>
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+            <p className="text-amber-800 text-sm">
+              <strong>Common causes:</strong><br />
+              • Link has expired (links are valid for 1 hour)<br />
+              • Link has already been used<br />
+              • Link was copied incorrectly
+            </p>
+          </div>
           <button
             onClick={() => navigate('/auth')}
             className="w-full bg-emerald-600 text-white py-3 px-4 rounded-lg hover:bg-emerald-700 transition-colors"
           >
-            Back to Sign In
+            Request New Reset Link
           </button>
         </div>
       </div>
