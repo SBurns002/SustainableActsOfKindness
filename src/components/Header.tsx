@@ -115,18 +115,21 @@ const Header: React.FC = () => {
                   )}
                 </div>
               </div>
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+              <div className="absolute right-0 mt-2 min-w-64 max-w-80 bg-white rounded-lg shadow-lg py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                 <div className="px-4 py-2 text-sm text-gray-700 border-b border-gray-100">
-                  {userEmail}
+                  <div className="font-medium text-gray-900 mb-1">Signed in as:</div>
+                  <div className="text-gray-600 break-all text-xs leading-relaxed">
+                    {userEmail}
+                  </div>
                 </div>
                 <Link
                   to="/profile"
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center"
                 >
-                  <User className="h-4 w-4 mr-2" />
-                  Profile
+                  <User className="h-4 w-4 mr-2 flex-shrink-0" />
+                  <span>Profile</span>
                   {hasUpcomingEvents && (
-                    <div className="ml-auto w-2 h-2 bg-red-500 rounded-full"></div>
+                    <div className="ml-auto w-2 h-2 bg-red-500 rounded-full flex-shrink-0"></div>
                   )}
                 </Link>
                 {isAdmin && (
@@ -134,16 +137,16 @@ const Header: React.FC = () => {
                     to="/admin"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center"
                   >
-                    <Shield className="h-4 w-4 mr-2" />
-                    Admin Dashboard
+                    <Shield className="h-4 w-4 mr-2 flex-shrink-0" />
+                    <span>Admin Dashboard</span>
                   </Link>
                 )}
                 <button
                   onClick={handleSignOut}
                   className="w-full px-4 py-2 text-sm text-left text-red-600 hover:bg-gray-50 flex items-center"
                 >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Sign Out
+                  <LogOut className="h-4 w-4 mr-2 flex-shrink-0" />
+                  <span>Sign Out</span>
                 </button>
               </div>
             </div>
