@@ -29,9 +29,10 @@ const Header: React.FC = () => {
       try {
         const { data: { user }, error } = await supabase.auth.getUser();
         
-        if (error) {
+        // Only handle actual errors, not missing sessions
+        if (error && error.message !== 'Auth session missing!') {
           console.error('Auth error:', error);
-          // Clear the session for any authentication error
+          // Clear the session for authentication errors
           await supabase.auth.signOut();
           setIsAuthenticated(false);
           setUserEmail(null);
@@ -40,16 +41,23 @@ const Header: React.FC = () => {
           return;
         }
         
+        // Handle the case where there's no user (normal when not logged in)
         setIsAuthenticated(!!user);
         setUserEmail(user?.email || null);
         
         if (user) {
           checkUpcomingEvents(user.id);
           checkAdminStatus(user.id);
+        } else {
+          setHasUpcomingEvents(false);
+          setIsAdmin(false);
         }
       } catch (error) {
         console.error('Unexpected auth error:', error);
-        await supabase.auth.signOut();
+        // Only sign out on unexpected errors, not missing sessions
+        if (error instanceof Error && !error.message.includes('Auth session missing')) {
+          await supabase.auth.signOut();
+        }
         setIsAuthenticated(false);
         setUserEmail(null);
         setHasUpcomingEvents(false);
