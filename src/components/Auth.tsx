@@ -16,7 +16,9 @@ const Auth: React.FC = () => {
   const [resetEmail, setResetEmail] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
-  const [resetAttempted, setResetAttempted] = useState(false); // Track if user has attempted reset
+  const [resetAttempted, setResetAttempted] = useState(false);
+  const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
+  const [confirmationEmail, setConfirmationEmail] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -26,25 +28,32 @@ const Auth: React.FC = () => {
     const isPasswordReset = urlParams.get('reset') === 'true';
     const hasError = urlParams.get('error');
     const hasErrorDescription = urlParams.get('error_description');
+    const isEmailConfirmed = urlParams.get('type') === 'signup';
+
+    if (isEmailConfirmed) {
+      // User clicked email confirmation link
+      toast.success('Email confirmed successfully! You can now sign in.');
+      // Clear the URL parameters
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('type');
+      newUrl.searchParams.delete('token_hash');
+      window.history.replaceState({}, '', newUrl.toString());
+    }
 
     if (isPasswordReset) {
-      // User clicked a password reset link - show them the reset form but don't auto-send
       setShowPasswordReset(true);
       setResetSent(false);
       setResetAttempted(false);
       
-      // Show informational message about the reset link
       toast.info('You clicked a password reset link. Please enter your email to send a new reset email.', {
         duration: 6000
       });
     }
 
     if (hasError) {
-      // Handle any auth errors from the URL
       const errorMsg = hasErrorDescription || hasError;
       toast.error(`Authentication error: ${errorMsg}`);
       
-      // Clear the error from URL
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete('error');
       newUrl.searchParams.delete('error_description');
@@ -58,28 +67,24 @@ const Auth: React.FC = () => {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth-status`,
+            emailRedirectTo: `${window.location.origin}/auth?type=signup`,
             data: {
-              email_confirm: false
+              email_confirm: true // Enable email confirmation
             }
           }
         });
+
         if (error) throw error;
+
+        // Show email confirmation message
+        setConfirmationEmail(email);
+        setShowEmailConfirmation(true);
+        toast.success('Please check your email to confirm your account before signing in.');
         
-        // Sign in immediately after sign up
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (signInError) throw signInError;
-        
-        toast.success('Welcome! Please complete your profile to get started.');
-        // Redirect new users to profile page to set up their information
-        navigate('/profile', { state: { isNewUser: true } });
       } else {
         // Sign in flow
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -89,6 +94,13 @@ const Auth: React.FC = () => {
         
         if (error) throw error;
 
+        // Check if email is confirmed
+        if (data.user && !data.user.email_confirmed_at) {
+          toast.error('Please confirm your email address before signing in. Check your inbox for a confirmation link.');
+          setLoading(false);
+          return;
+        }
+
         // Check if user has MFA enabled
         if (data.user) {
           try {
@@ -96,7 +108,6 @@ const Auth: React.FC = () => {
             
             if (factorsError) {
               console.error('Error checking MFA factors:', factorsError);
-              // Continue with normal login if we can't check MFA
               toast.success('Successfully logged in!');
               const returnTo = location.state?.returnTo || '/';
               navigate(returnTo);
@@ -114,11 +125,9 @@ const Auth: React.FC = () => {
             }
           } catch (mfaError) {
             console.error('Error checking MFA status:', mfaError);
-            // Continue with normal login if MFA check fails
           }
         }
 
-        // No MFA required, complete login
         toast.success('Successfully logged in!');
         const returnTo = location.state?.returnTo || '/';
         navigate(returnTo);
@@ -126,12 +135,10 @@ const Auth: React.FC = () => {
     } catch (error: any) {
       console.error('Authentication error:', error);
       
-      // Provide more specific error messages
       if (error.message === 'Failed to fetch') {
         toast.error('Unable to connect to authentication service. Please check your internet connection and try again.');
       } else if (error.message.includes('Invalid login credentials')) {
         toast.error('Invalid email or password. Please check your credentials and try again.');
-        // Show password reset option for sign in attempts with wrong credentials
         if (!isSignUp) {
           setTimeout(() => {
             toast((t) => (
@@ -158,6 +165,11 @@ const Auth: React.FC = () => {
         }
       } else if (error.message.includes('Email not confirmed')) {
         toast.error('Please check your email and confirm your account before signing in.');
+      } else if (error.message.includes('Signup requires a valid password')) {
+        toast.error('Password must be at least 6 characters long.');
+      } else if (error.message.includes('User already registered')) {
+        toast.error('An account with this email already exists. Please sign in instead.');
+        setIsSignUp(false);
       } else {
         toast.error(error.message || 'An unexpected error occurred. Please try again.');
       }
@@ -176,7 +188,6 @@ const Auth: React.FC = () => {
       return;
     }
 
-    // Prevent multiple rapid submissions
     if (resetLoading) {
       return;
     }
@@ -188,7 +199,6 @@ const Auth: React.FC = () => {
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
         redirectTo: `${window.location.origin}/auth?reset=true`,
         data: {
-          // Custom data that can be used in email templates
           app_name: 'Sustainable Acts of Kindness',
           app_description: 'Environmental Community Platform',
           support_email: 'support@sustainableactsofkindness.org',
@@ -220,6 +230,26 @@ const Auth: React.FC = () => {
     }
   };
 
+  const resendConfirmationEmail = async () => {
+    if (!confirmationEmail) return;
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: confirmationEmail,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth?type=signup`
+        }
+      });
+
+      if (error) throw error;
+      toast.success('Confirmation email resent! Please check your inbox.');
+    } catch (error: any) {
+      console.error('Error resending confirmation:', error);
+      toast.error('Failed to resend confirmation email. Please try again.');
+    }
+  };
+
   const handleMfaSuccess = () => {
     setShowMfaChallenge(false);
     setMfaFactorId(null);
@@ -229,7 +259,6 @@ const Auth: React.FC = () => {
   };
 
   const handleMfaCancel = async () => {
-    // Sign out the user since they didn't complete MFA
     await supabase.auth.signOut();
     setShowMfaChallenge(false);
     setMfaFactorId(null);
@@ -244,10 +273,17 @@ const Auth: React.FC = () => {
     setResetAttempted(false);
     setResetLoading(false);
     
-    // Clear any reset parameters from URL
     const newUrl = new URL(window.location.href);
     newUrl.searchParams.delete('reset');
     window.history.replaceState({}, '', newUrl.toString());
+  };
+
+  const resetEmailConfirmationState = () => {
+    setShowEmailConfirmation(false);
+    setConfirmationEmail('');
+    setEmail('');
+    setPassword('');
+    setIsSignUp(false);
   };
 
   if (showMfaChallenge) {
@@ -267,6 +303,70 @@ const Auth: React.FC = () => {
             onCancel={handleMfaCancel}
             factorId={mfaFactorId}
           />
+        </div>
+      </div>
+    );
+  }
+
+  if (showEmailConfirmation) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md">
+          <button
+            onClick={resetEmailConfirmationState}
+            className="mb-4 flex items-center text-emerald-600 hover:text-emerald-700 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Sign In
+          </button>
+          
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Check Your Email
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            We've sent a confirmation link to verify your account
+          </p>
+        </div>
+
+        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+          <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+            <div className="text-center">
+              <div className="bg-emerald-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Mail className="w-8 h-8 text-emerald-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirm Your Email Address</h3>
+              <p className="text-gray-600 mb-4">
+                We've sent a confirmation email to <strong>{confirmationEmail}</strong>
+              </p>
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-emerald-800">
+                  <strong>Next steps:</strong>
+                </p>
+                <ol className="text-sm text-emerald-700 mt-2 list-decimal list-inside space-y-1">
+                  <li>Check your email inbox (and spam folder)</li>
+                  <li>Click the confirmation link in the email</li>
+                  <li>Return here to sign in with your credentials</li>
+                </ol>
+              </div>
+              <p className="text-sm text-gray-500 mb-6">
+                Didn't receive the email? Check your spam folder or request a new one.
+              </p>
+              <div className="space-y-3">
+                <button
+                  onClick={resendConfirmationEmail}
+                  className="w-full flex justify-center py-2 px-4 border border-emerald-600 text-emerald-600 rounded-md shadow-sm text-sm font-medium hover:bg-emerald-50 transition-colors"
+                >
+                  Resend Confirmation Email
+                </button>
+                <button
+                  onClick={resetEmailConfirmationState}
+                  className="w-full flex justify-center py-2 px-4 border border-gray-300 text-gray-700 rounded-md shadow-sm text-sm font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Back to Sign In
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -413,6 +513,11 @@ const Auth: React.FC = () => {
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
           {isSignUp ? 'Create your account' : 'Sign in to your account'}
         </h2>
+        {isSignUp && (
+          <p className="mt-2 text-center text-sm text-gray-600">
+            You'll need to confirm your email address before you can sign in
+          </p>
+        )}
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
@@ -450,6 +555,11 @@ const Auth: React.FC = () => {
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"
                 />
               </div>
+              {isSignUp && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Password must be at least 6 characters long
+                </p>
+              )}
             </div>
 
             {!isSignUp && (
