@@ -20,3 +20,5 @@
       setMapKey(prev => prev + 1);
     });
   };
+
+export default debugTestingEvent
