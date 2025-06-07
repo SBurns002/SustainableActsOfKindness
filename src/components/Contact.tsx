@@ -127,8 +127,8 @@ const Contact: React.FC = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-gray-900 mb-2">Email Us</h3>
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-3">
-                      <p className="text-gray-900 font-medium break-all">
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-3 w-full">
+                      <p className="text-gray-900 font-medium text-sm leading-relaxed">
                         admin@sustainableactsofkindness.org
                       </p>
                     </div>
