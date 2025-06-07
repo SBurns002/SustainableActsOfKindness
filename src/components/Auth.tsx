@@ -24,16 +24,20 @@ const Auth: React.FC = () => {
 
   // Get the current application URL for redirects
   const getAppUrl = () => {
-    // Check if we're in production by looking at the hostname
+    // Always use the production URL for redirects to ensure consistency
     const hostname = window.location.hostname;
+    
+    // Production environment - use your actual Netlify URL
+    if (hostname.includes('netlify.app') || hostname.includes('gentle-madeleine-5ec626')) {
+      return 'https://gentle-madeleine-5ec626.netlify.app';
+    }
     
     // Development environments
     if (hostname === 'localhost' || hostname.includes('webcontainer') || hostname.includes('127.0.0.1')) {
       return window.location.origin;
     }
     
-    // Production environment - hardcode your production URL here
-    // Replace this with your actual Netlify URL
+    // Fallback to production URL for any other case
     return 'https://gentle-madeleine-5ec626.netlify.app';
   };
 
