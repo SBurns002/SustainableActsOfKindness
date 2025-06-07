@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { eventDataManager } from '../lib/eventDataManager';
 import { Calendar, Bell, Settings, Loader, Clock, CheckCircle, AlertCircle, UserMinus, Eye, Plus, Shield, Smartphone, Key, User, MapPin, Edit, Save, X } from 'lucide-react';
@@ -45,6 +45,7 @@ interface UserProfile {
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [participations, setParticipations] = useState<EventParticipation[]>([]);
@@ -64,6 +65,9 @@ const Profile: React.FC = () => {
     zip_code: ''
   });
   const [profileSaving, setProfileSaving] = useState(false);
+
+  // Check if this is a new user from sign-up
+  const isNewUser = location.state?.isNewUser;
 
   const getEventDetails = (eventId: string) => {
     // First try to get by UUID
@@ -124,12 +128,17 @@ const Profile: React.FC = () => {
           zip_code: profile.zip_code || ''
         });
       } else {
-        // No profile exists yet
+        // No profile exists yet - for new users, start in edit mode
         setUserProfile(null);
         setProfileForm({
           first_name: '',
           zip_code: ''
         });
+        
+        // If this is a new user, automatically start in edit mode
+        if (isNewUser) {
+          setIsEditingProfile(true);
+        }
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -173,12 +182,17 @@ const Profile: React.FC = () => {
       setIsEditingProfile(false);
       toast.success('Profile saved successfully!');
 
-      // If zip code was provided, redirect to map with that location
-      if (profileForm.zip_code.trim()) {
-        toast.success(`Redirecting to events in ${profileForm.zip_code}...`);
+      // If this is a new user and they provided a zip code, redirect to map
+      if (isNewUser && profileForm.zip_code.trim()) {
+        toast.success(`Welcome! Redirecting to events in ${profileForm.zip_code}...`);
         // Store zip code in localStorage for the map to use
         localStorage.setItem('userZipCode', profileForm.zip_code.trim());
-        navigate('/');
+        // Clear the new user state and redirect
+        navigate('/', { replace: true });
+      } else if (isNewUser) {
+        // New user but no zip code provided - still redirect to map
+        toast.success('Welcome! You can explore events and update your location preferences anytime.');
+        navigate('/', { replace: true });
       }
     } catch (error: any) {
       console.error('Error saving profile:', error);
@@ -667,8 +681,17 @@ const Profile: React.FC = () => {
     <div className="max-w-4xl mx-auto p-6">
       <div className="bg-white rounded-lg shadow-lg p-8">
         <div className="border-b border-gray-200 pb-6 mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Profile</h1>
+          <h1 className="text-3xl font-bold text-gray-900">
+            {isNewUser ? 'Welcome! Complete Your Profile' : 'Profile'}
+          </h1>
           <p className="text-gray-600 mt-2">{userEmail}</p>
+          {isNewUser && (
+            <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+              <p className="text-emerald-800 text-sm">
+                <strong>Welcome to Sustainable Acts of Kindness!</strong> Please add your information below to get started with finding environmental events in your area.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="space-y-8">
@@ -685,17 +708,17 @@ const Profile: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                      <p className="text-gray-900 bg-white px-3 py-2 rounded border">
+                      <div className="text-gray-900 bg-white px-3 py-2 rounded border border-gray-200">
                         {userProfile?.first_name || 'Not provided'}
-                      </p>
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Volunteer Location</label>
                       <div className="flex items-center space-x-2">
                         <MapPin className="w-4 h-4 text-gray-400" />
-                        <p className="text-gray-900 bg-white px-3 py-2 rounded border flex-1">
+                        <div className="text-gray-900 bg-white px-3 py-2 rounded border border-gray-200 flex-1">
                           {userProfile?.zip_code || 'Not provided'}
-                        </p>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -743,33 +766,38 @@ const Profile: React.FC = () => {
                         />
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
-                        We'll show you events in this area when you visit the map
+                        {isNewUser 
+                          ? "We'll show you events in this area and redirect you to the map"
+                          : "We'll show you events in this area when you visit the map"
+                        }
                       </p>
                     </div>
                   </div>
                   
                   <div className="flex justify-end space-x-3">
-                    <button
-                      onClick={() => {
-                        setIsEditingProfile(false);
-                        setProfileForm({
-                          first_name: userProfile?.first_name || '',
-                          zip_code: userProfile?.zip_code || ''
-                        });
-                      }}
-                      className="flex items-center space-x-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                      disabled={profileSaving}
-                    >
-                      <X className="w-4 h-4" />
-                      <span>Cancel</span>
-                    </button>
+                    {!isNewUser && (
+                      <button
+                        onClick={() => {
+                          setIsEditingProfile(false);
+                          setProfileForm({
+                            first_name: userProfile?.first_name || '',
+                            zip_code: userProfile?.zip_code || ''
+                          });
+                        }}
+                        className="flex items-center space-x-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                        disabled={profileSaving}
+                      >
+                        <X className="w-4 h-4" />
+                        <span>Cancel</span>
+                      </button>
+                    )}
                     <button
                       onClick={saveUserProfile}
                       disabled={profileSaving}
                       className="flex items-center space-x-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Save className="w-4 h-4" />
-                      <span>{profileSaving ? 'Saving...' : 'Save'}</span>
+                      <span>{profileSaving ? 'Saving...' : isNewUser ? 'Save & Continue' : 'Save'}</span>
                     </button>
                   </div>
                 </div>
@@ -777,302 +805,307 @@ const Profile: React.FC = () => {
             </div>
           </div>
 
-          {/* Security Settings Section */}
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-              <Shield className="w-5 h-5 mr-2" />
-              Security Settings
-            </h2>
-            
-            <div className="bg-gray-50 rounded-lg p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Multi-Factor Authentication</h3>
-                  <p className="text-gray-600 mb-4">
-                    Add an extra layer of security to your account with MFA
-                  </p>
-                  
-                  {isMfaEnabled && (
-                    <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="bg-green-100 p-2 rounded-lg">
-                            <Smartphone className="w-5 h-5 text-green-600" />
-                          </div>
-                          <div>
-                            <h4 className="font-medium text-gray-900">Authenticator App</h4>
-                            <p className="text-sm text-gray-600">
-                              Added on {new Date(mfaFactors[0]?.created_at).toLocaleDateString()}
-                            </p>
+          {/* Only show other sections if not a new user or if they're not editing */}
+          {!isNewUser && !isEditingProfile && (
+            <>
+              {/* Security Settings Section */}
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                  <Shield className="w-5 h-5 mr-2" />
+                  Security Settings
+                </h2>
+                
+                <div className="bg-gray-50 rounded-lg p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Multi-Factor Authentication</h3>
+                      <p className="text-gray-600 mb-4">
+                        Add an extra layer of security to your account with MFA
+                      </p>
+                      
+                      {isMfaEnabled && (
+                        <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <div className="bg-green-100 p-2 rounded-lg">
+                                <Smartphone className="w-5 h-5 text-green-600" />
+                              </div>
+                              <div>
+                                <h4 className="font-medium text-gray-900">Authenticator App</h4>
+                                <p className="text-sm text-gray-600">
+                                  Added on {new Date(mfaFactors[0]?.created_at).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-3">
+                              <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">
+                                Enabled
+                              </span>
+                              <button
+                                onClick={() => setShowMfaDisable(true)}
+                                className="text-red-600 hover:text-red-700 text-sm font-medium"
+                              >
+                                Disable
+                              </button>
+                            </div>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-3">
-                          <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">
-                            Enabled
-                          </span>
-                          <button
-                            onClick={() => setShowMfaDisable(true)}
-                            className="text-red-600 hover:text-red-700 text-sm font-medium"
-                          >
-                            Disable
-                          </button>
-                        </div>
-                      </div>
+                      )}
                     </div>
+                    
+                    {!isMfaEnabled && (
+                      <button
+                        onClick={() => setShowMfaSetup(true)}
+                        className="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition-colors"
+                      >
+                        Enable MFA
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Event Reminders Section */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                    <Bell className="w-5 h-5 mr-2" />
+                    Event Reminders
+                  </h2>
+                  {participationsWithoutReminders.length > 0 && (
+                    <button
+                      onClick={createMissingReminders}
+                      disabled={creatingReminders}
+                      className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>
+                        {creatingReminders 
+                          ? 'Creating...' 
+                          : `Create ${participationsWithoutReminders.length} Reminder${participationsWithoutReminders.length > 1 ? 's' : ''}`
+                        }
+                      </span>
+                    </button>
                   )}
                 </div>
                 
-                {!isMfaEnabled && (
-                  <button
-                    onClick={() => setShowMfaSetup(true)}
-                    className="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition-colors"
-                  >
-                    Enable MFA
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Event Reminders Section */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-                <Bell className="w-5 h-5 mr-2" />
-                Event Reminders
-              </h2>
-              {participationsWithoutReminders.length > 0 && (
-                <button
-                  onClick={createMissingReminders}
-                  disabled={creatingReminders}
-                  className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>
-                    {creatingReminders 
-                      ? 'Creating...' 
-                      : `Create ${participationsWithoutReminders.length} Reminder${participationsWithoutReminders.length > 1 ? 's' : ''}`
-                    }
-                  </span>
-                </button>
-              )}
-            </div>
-            
-            {upcomingReminders.length === 0 && pastReminders.length === 0 ? (
-              <div className="text-gray-600 bg-gray-50 rounded-lg p-6 text-center">
-                <Bell className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                <p>No event reminders yet.</p>
-                <button
-                  onClick={() => navigate('/')}
-                  className="mt-4 text-emerald-600 hover:text-emerald-700 font-medium"
-                >
-                  Join Events to Get Reminders
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {/* Upcoming Events */}
-                {upcomingReminders.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-800 mb-3">Upcoming Events</h3>
-                    <div className="space-y-3">
-                      {upcomingReminders.map((reminder) => {
-                        const eventStatus = getEventStatus(reminder.event_date);
-                        const StatusIcon = eventStatus.icon;
-                        
-                        return (
-                          <div
-                            key={reminder.id}
-                            className={`border rounded-lg p-4 transition-colors ${
-                              !reminder.is_read 
-                                ? 'border-emerald-500 bg-emerald-50' 
-                                : 'border-gray-200 hover:border-emerald-300'
-                            }`}
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center space-x-2 mb-2">
-                                  <h4 className="font-medium text-gray-900">{reminder.event_name}</h4>
-                                  {!reminder.is_read && (
-                                    <span className="bg-emerald-600 text-white text-xs px-2 py-1 rounded-full">
-                                      New
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center space-x-4 text-sm text-gray-600 mb-2">
-                                  <div className="flex items-center space-x-1">
-                                    <Calendar className="w-4 h-4" />
-                                    <span>{new Date(reminder.event_date).toLocaleDateString()}</span>
+                {upcomingReminders.length === 0 && pastReminders.length === 0 ? (
+                  <div className="text-gray-600 bg-gray-50 rounded-lg p-6 text-center">
+                    <Bell className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                    <p>No event reminders yet.</p>
+                    <button
+                      onClick={() => navigate('/')}
+                      className="mt-4 text-emerald-600 hover:text-emerald-700 font-medium"
+                    >
+                      Join Events to Get Reminders
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Upcoming Events */}
+                    {upcomingReminders.length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-800 mb-3">Upcoming Events</h3>
+                        <div className="space-y-3">
+                          {upcomingReminders.map((reminder) => {
+                            const eventStatus = getEventStatus(reminder.event_date);
+                            const StatusIcon = eventStatus.icon;
+                            
+                            return (
+                              <div
+                                key={reminder.id}
+                                className={`border rounded-lg p-4 transition-colors ${
+                                  !reminder.is_read 
+                                    ? 'border-emerald-500 bg-emerald-50' 
+                                    : 'border-gray-200 hover:border-emerald-300'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <div className="flex items-center space-x-2 mb-2">
+                                      <h4 className="font-medium text-gray-900">{reminder.event_name}</h4>
+                                      {!reminder.is_read && (
+                                        <span className="bg-emerald-600 text-white text-xs px-2 py-1 rounded-full">
+                                          New
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center space-x-4 text-sm text-gray-600 mb-2">
+                                      <div className="flex items-center space-x-1">
+                                        <Calendar className="w-4 h-4" />
+                                        <span>{new Date(reminder.event_date).toLocaleDateString()}</span>
+                                      </div>
+                                    </div>
+                                    <div className={`inline-flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium ${eventStatus.color} ${eventStatus.bgColor}`}>
+                                      <StatusIcon className="w-4 h-4" />
+                                      <span>{eventStatus.text}</span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    {!reminder.is_read && (
+                                      <button
+                                        onClick={() => markReminderAsRead(reminder.id)}
+                                        className="text-emerald-600 hover:text-emerald-700 text-sm font-medium"
+                                      >
+                                        Mark as Read
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => navigate(`/event/${encodeURIComponent(reminder.event_name)}`)}
+                                      className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center space-x-1"
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                      <span>View</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleLeaveEvent(reminder.event_id, reminder.event_name)}
+                                      className="text-red-600 hover:text-red-700 text-sm font-medium flex items-center space-x-1"
+                                    >
+                                      <UserMinus className="w-4 h-4" />
+                                      <span>Leave</span>
+                                    </button>
                                   </div>
                                 </div>
-                                <div className={`inline-flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium ${eventStatus.color} ${eventStatus.bgColor}`}>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Past Events */}
+                    {pastReminders.length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-800 mb-3">Past Events</h3>
+                        <div className="space-y-3">
+                          {pastReminders.slice(0, 5).map((reminder) => (
+                            <div
+                              key={reminder.id}
+                              className="border border-gray-200 rounded-lg p-4 bg-gray-50"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <h4 className="font-medium text-gray-700">{reminder.event_name}</h4>
+                                  <div className="flex items-center space-x-1 text-sm text-gray-500 mt-1">
+                                    <CheckCircle className="w-4 h-4" />
+                                    <span>Completed on {new Date(reminder.event_date).toLocaleDateString()}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Your Events Section */}
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Your Event Participations</h2>
+                {participations.length === 0 ? (
+                  <div className="text-gray-600 bg-gray-50 rounded-lg p-6 text-center">
+                    <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                    <p>You haven't joined any events yet.</p>
+                    <button
+                      onClick={() => navigate('/')}
+                      className="mt-4 text-emerald-600 hover:text-emerald-700 font-medium"
+                    >
+                      Browse Events
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {participations.map((participation) => {
+                      const eventDetails = getEventDetails(participation.event_id);
+                      const eventStatus = eventDetails ? getEventStatus(eventDetails.properties.date) : null;
+                      const StatusIcon = eventStatus?.icon || Calendar;
+                      
+                      // For display purposes, try to get the event name from details, fallback to event_id
+                      const displayName = eventDetails?.properties?.name || participation.event_id;
+                      
+                      return (
+                        <div
+                          key={participation.id}
+                          className="border border-gray-200 rounded-lg p-4 hover:border-emerald-500 transition-colors"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h3 className="font-medium text-gray-900">{displayName}</h3>
+                              <div className="flex items-center space-x-4 text-sm text-gray-500 mt-1">
+                                <span>Joined on {new Date(participation.created_at).toLocaleDateString()}</span>
+                                {eventDetails && (
+                                  <span>Event: {new Date(eventDetails.properties.date).toLocaleDateString()}</span>
+                                )}
+                              </div>
+                              {eventStatus && (
+                                <div className={`inline-flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium mt-2 ${eventStatus.color} ${eventStatus.bgColor}`}>
                                   <StatusIcon className="w-4 h-4" />
                                   <span>{eventStatus.text}</span>
                                 </div>
-                              </div>
+                              )}
+                            </div>
+                            <div className="flex items-center space-x-4">
                               <div className="flex items-center space-x-2">
-                                {!reminder.is_read && (
-                                  <button
-                                    onClick={() => markReminderAsRead(reminder.id)}
-                                    className="text-emerald-600 hover:text-emerald-700 text-sm font-medium"
-                                  >
-                                    Mark as Read
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => navigate(`/event/${encodeURIComponent(reminder.event_name)}`)}
-                                  className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center space-x-1"
-                                >
-                                  <Eye className="w-4 h-4" />
-                                  <span>View</span>
-                                </button>
-                                <button
-                                  onClick={() => handleLeaveEvent(reminder.event_id, reminder.event_name)}
-                                  className="text-red-600 hover:text-red-700 text-sm font-medium flex items-center space-x-1"
-                                >
-                                  <UserMinus className="w-4 h-4" />
-                                  <span>Leave</span>
-                                </button>
+                                <Bell className="w-4 h-4 text-gray-400" />
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    className="sr-only peer"
+                                    checked={participation.notification_preferences.email}
+                                    onChange={() => updateNotificationPreferences(participation.id, {
+                                      ...participation.notification_preferences,
+                                      email: !participation.notification_preferences.email
+                                    })}
+                                  />
+                                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                                  <span className="ml-2 text-sm font-medium text-gray-700">Email</span>
+                                </label>
                               </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Past Events */}
-                {pastReminders.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-800 mb-3">Past Events</h3>
-                    <div className="space-y-3">
-                      {pastReminders.slice(0, 5).map((reminder) => (
-                        <div
-                          key={reminder.id}
-                          className="border border-gray-200 rounded-lg p-4 bg-gray-50"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h4 className="font-medium text-gray-700">{reminder.event_name}</h4>
-                              <div className="flex items-center space-x-1 text-sm text-gray-500 mt-1">
-                                <CheckCircle className="w-4 h-4" />
-                                <span>Completed on {new Date(reminder.event_date).toLocaleDateString()}</span>
-                              </div>
+                              <button
+                                onClick={() => navigate(`/event/${encodeURIComponent(displayName)}`)}
+                                className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center space-x-1"
+                              >
+                                <Eye className="w-4 h-4" />
+                                <span>View</span>
+                              </button>
+                              <button
+                                onClick={() => handleLeaveEvent(participation.event_id, displayName)}
+                                className="text-red-600 hover:text-red-700 text-sm font-medium flex items-center space-x-1"
+                              >
+                                <UserMinus className="w-4 h-4" />
+                                <span>Leave</span>
+                              </button>
                             </div>
                           </div>
                         </div>
-                      ))}
-                    </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
-            )}
-          </div>
 
-          {/* Your Events Section */}
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Your Event Participations</h2>
-            {participations.length === 0 ? (
-              <div className="text-gray-600 bg-gray-50 rounded-lg p-6 text-center">
-                <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                <p>You haven't joined any events yet.</p>
-                <button
-                  onClick={() => navigate('/')}
-                  className="mt-4 text-emerald-600 hover:text-emerald-700 font-medium"
-                >
-                  Browse Events
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {participations.map((participation) => {
-                  const eventDetails = getEventDetails(participation.event_id);
-                  const eventStatus = eventDetails ? getEventStatus(eventDetails.properties.date) : null;
-                  const StatusIcon = eventStatus?.icon || Calendar;
-                  
-                  // For display purposes, try to get the event name from details, fallback to event_id
-                  const displayName = eventDetails?.properties?.name || participation.event_id;
-                  
-                  return (
-                    <div
-                      key={participation.id}
-                      className="border border-gray-200 rounded-lg p-4 hover:border-emerald-500 transition-colors"
+              {/* Settings Section */}
+              <div className="border-t border-gray-200 pt-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Settings</h2>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <Settings className="w-5 h-5 text-gray-400" />
+                      <span className="text-gray-700">Account Preferences</span>
+                    </div>
+                    <button
+                      className="text-emerald-600 hover:text-emerald-700 font-medium text-sm"
+                      onClick={() => toast.success('Settings page coming soon!')}
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-medium text-gray-900">{displayName}</h3>
-                          <div className="flex items-center space-x-4 text-sm text-gray-500 mt-1">
-                            <span>Joined on {new Date(participation.created_at).toLocaleDateString()}</span>
-                            {eventDetails && (
-                              <span>Event: {new Date(eventDetails.properties.date).toLocaleDateString()}</span>
-                            )}
-                          </div>
-                          {eventStatus && (
-                            <div className={`inline-flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium mt-2 ${eventStatus.color} ${eventStatus.bgColor}`}>
-                              <StatusIcon className="w-4 h-4" />
-                              <span>{eventStatus.text}</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-center space-x-4">
-                          <div className="flex items-center space-x-2">
-                            <Bell className="w-4 h-4 text-gray-400" />
-                            <label className="relative inline-flex items-center cursor-pointer">
-                              <input
-                                type="checkbox"
-                                className="sr-only peer"
-                                checked={participation.notification_preferences.email}
-                                onChange={() => updateNotificationPreferences(participation.id, {
-                                  ...participation.notification_preferences,
-                                  email: !participation.notification_preferences.email
-                                })}
-                              />
-                              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                              <span className="ml-2 text-sm font-medium text-gray-700">Email</span>
-                            </label>
-                          </div>
-                          <button
-                            onClick={() => navigate(`/event/${encodeURIComponent(displayName)}`)}
-                            className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center space-x-1"
-                          >
-                            <Eye className="w-4 h-4" />
-                            <span>View</span>
-                          </button>
-                          <button
-                            onClick={() => handleLeaveEvent(participation.event_id, displayName)}
-                            className="text-red-600 hover:text-red-700 text-sm font-medium flex items-center space-x-1"
-                          >
-                            <UserMinus className="w-4 h-4" />
-                            <span>Leave</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Settings Section */}
-          <div className="border-t border-gray-200 pt-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Settings</h2>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <Settings className="w-5 h-5 text-gray-400" />
-                  <span className="text-gray-700">Account Preferences</span>
+                      Manage
+                    </button>
+                  </div>
                 </div>
-                <button
-                  className="text-emerald-600 hover:text-emerald-700 font-medium text-sm"
-                  onClick={() => toast.success('Settings page coming soon!')}
-                >
-                  Manage
-                </button>
               </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       </div>
 

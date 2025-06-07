@@ -77,9 +77,9 @@ const Auth: React.FC = () => {
         });
         if (signInError) throw signInError;
         
-        toast.success('Successfully signed up and logged in!');
-        const returnTo = location.state?.returnTo || '/';
-        navigate(returnTo);
+        toast.success('Welcome! Please complete your profile to get started.');
+        // Redirect new users to profile page to set up their information
+        navigate('/profile', { state: { isNewUser: true } });
       } else {
         // Sign in flow
         const { data, error } = await supabase.auth.signInWithPassword({
