@@ -257,10 +257,8 @@ const Profile: React.FC = () => {
       
       if (userError) {
         console.error('Error getting user:', userError);
-        // If user doesn't exist in database, clear the session
-        if (userError.message?.includes('User from sub claim in JWT does not exist')) {
-          await supabase.auth.signOut();
-        }
+        // Clear the session for any authentication error
+        await supabase.auth.signOut();
         navigate('/auth');
         return;
       }

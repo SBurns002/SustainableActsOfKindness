@@ -21,10 +21,8 @@ const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
       
       if (userError) {
         console.error('Auth error:', userError);
-        // If user doesn't exist in database, clear the session
-        if (userError.message?.includes('User from sub claim in JWT does not exist')) {
-          await supabase.auth.signOut();
-        }
+        // Clear the session for any authentication error
+        await supabase.auth.signOut();
         setIsAdmin(false);
         setLoading(false);
         return;
