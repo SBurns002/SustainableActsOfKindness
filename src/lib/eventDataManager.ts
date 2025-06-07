@@ -104,7 +104,7 @@ class EventDataManager {
         if (isAdminCreated) {
           // Store admin-created events separately
           this.adminCreatedEvents.set(event.id, eventUpdate);
-          console.log('Loaded admin-created event:', event.title, 'with ID:', event.id);
+          console.log('Loaded admin-created event:', event.title, 'with ID:', event.id, 'Status:', event.status);
         } else {
           // Store by original name for mapping to static data
           this.eventUpdates.set(originalName, eventUpdate);
@@ -120,7 +120,8 @@ class EventDataManager {
       console.log('Event data loaded:', {
         staticUpdates: this.eventUpdates.size,
         adminCreated: this.adminCreatedEvents.size,
-        totalEvents: events?.length || 0
+        totalEvents: events?.length || 0,
+        adminEventTitles: Array.from(this.adminCreatedEvents.values()).map(e => e.title)
       });
 
       this.notifyListeners();
@@ -233,17 +234,20 @@ class EventDataManager {
       'arnold arboretum': [42.3188, -71.0846],
       'castle island': [42.3188, -71.0846],
       'boston university': [42.3505, -71.1054],
-      'harvard medical': [42.3467, -71.0972]
+      'harvard medical': [42.3467, -71.0972],
+      'testing': [42.3601, -71.0589] // Add specific coordinates for testing events
     };
 
     // Find matching neighborhood
     for (const [neighborhood, coords] of Object.entries(bostonCoordinates)) {
       if (cleanLocation.includes(neighborhood)) {
+        console.log(`Found coordinates for ${neighborhood}:`, coords);
         return coords;
       }
     }
     
     // Default to Boston center if no specific match
+    console.log('Using default Boston coordinates for:', cleanLocation);
     return [42.3601, -71.0589];
   }
 
@@ -257,7 +261,8 @@ class EventDataManager {
       title: event.title,
       location: event.location,
       coordinates: coordinates,
-      eventType: event.event_type
+      eventType: event.event_type,
+      status: event.status
     });
 
     return {
@@ -344,8 +349,13 @@ class EventDataManager {
 
     // Add admin-created events as new features (only active ones)
     const adminFeatures = Array.from(this.adminCreatedEvents.values())
-      .filter(event => event.status === 'active') // Only show active events
+      .filter(event => {
+        console.log(`Checking admin event ${event.title}: status=${event.status}, active=${event.status === 'active'}`);
+        return event.status === 'active';
+      })
       .map(event => this.adminEventToGeoJSONFeature(event));
+
+    console.log('Admin features to add to map:', adminFeatures.length, adminFeatures.map(f => f.properties.name));
 
     mergedData.features = [...mergedData.features, ...adminFeatures];
 
@@ -353,7 +363,8 @@ class EventDataManager {
       staticEvents: cleanupData.features.length,
       updatedEvents: this.eventUpdates.size,
       adminEvents: adminFeatures.length,
-      totalFeatures: mergedData.features.length
+      totalFeatures: mergedData.features.length,
+      allEventNames: mergedData.features.map(f => f.properties.name)
     });
 
     return mergedData;
@@ -458,6 +469,22 @@ class EventDataManager {
       byId: Array.from(this.eventsById.entries()),
       adminCreated: Array.from(this.adminCreatedEvents.entries())
     };
+  }
+
+  // Debug method to check specific event
+  debugEvent(eventName: string) {
+    console.log('=== DEBUG EVENT:', eventName, '===');
+    console.log('In adminCreatedEvents:', Array.from(this.adminCreatedEvents.values()).find(e => e.title === eventName));
+    console.log('In eventsByTitle:', this.eventsByTitle.get(eventName));
+    console.log('In eventsById:', Array.from(this.eventsById.values()).find(e => e.title === eventName));
+    console.log('All admin events:', Array.from(this.adminCreatedEvents.values()).map(e => ({ title: e.title, status: e.status })));
+    
+    const mergedData = this.getMergedEventData();
+    const foundInMerged = mergedData.features.find(f => f.properties.name === eventName);
+    console.log('Found in merged data:', foundInMerged ? 'YES' : 'NO');
+    if (foundInMerged) {
+      console.log('Event details:', foundInMerged.properties);
+    }
   }
 }
 

@@ -915,11 +915,35 @@ const MapView: React.FC = () => {
     { icon: Mail, label: 'Contact', path: '/contact' }
   ];
 
+  // Debug function to check specific event
+  const debugTestingEvent = () => {
+    console.log('=== DEBUGGING TESTING EVENT ===');
+    eventDataManager.debugEvent('Testing');
+    console.log('Current filtered data features:', filteredData.features.map(f => f.properties.name));
+    console.log('Map key:', mapKey);
+  };
+
+  // Add debug button (remove in production)
+  useEffect(() => {
+    // Auto-debug when component mounts
+    setTimeout(() => {
+      debugTestingEvent();
+    }, 2000);
+  }, []);
+
   return (
     <div className="relative w-full h-full flex">
       {/* Left sidebar with search, filters and navigation */}
       <div className="w-80 bg-white shadow-lg z-[1001] overflow-y-auto">
         <div className="p-4">
+          {/* Debug button - remove in production */}
+          <button
+            onClick={debugTestingEvent}
+            className="mb-4 w-full bg-red-600 text-white py-2 px-4 rounded-lg text-sm"
+          >
+            Debug Testing Event
+          </button>
+
           {/* Search Section */}
           <div className="mb-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-4 text-center">Find Sustainability Events</h2>
