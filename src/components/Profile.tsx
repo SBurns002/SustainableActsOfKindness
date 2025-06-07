@@ -148,12 +148,19 @@ const Profile: React.FC = () => {
   const saveUserProfile = async () => {
     if (!currentUser) return;
 
+    // Validate Boston zip code
+    const zipCode = profileForm.zip_code.trim();
+    if (zipCode && !zipCode.startsWith('021') && !zipCode.startsWith('022')) {
+      toast.error('Please enter a Boston area zip code (021xx or 022xx)');
+      return;
+    }
+
     setProfileSaving(true);
     try {
       const profileData = {
         user_id: currentUser.id,
         first_name: profileForm.first_name.trim() || null,
-        zip_code: profileForm.zip_code.trim() || null
+        zip_code: zipCode || null
       };
 
       if (userProfile) {
@@ -183,10 +190,10 @@ const Profile: React.FC = () => {
       toast.success('Profile saved successfully!');
 
       // If this is a new user and they provided a zip code, redirect to map
-      if (isNewUser && profileForm.zip_code.trim()) {
-        toast.success(`Welcome! Redirecting to events in ${profileForm.zip_code}...`);
+      if (isNewUser && zipCode) {
+        toast.success(`Welcome! Redirecting to events in ${zipCode}...`);
         // Store zip code in localStorage for the map to use
-        localStorage.setItem('userZipCode', profileForm.zip_code.trim());
+        localStorage.setItem('userZipCode', zipCode);
         // Clear the new user state and redirect
         navigate('/', { replace: true });
       } else if (isNewUser) {
@@ -688,7 +695,7 @@ const Profile: React.FC = () => {
           {isNewUser && (
             <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
               <p className="text-emerald-800 text-sm">
-                <strong>Welcome to Sustainable Acts of Kindness!</strong> Please add your information below to get started with finding environmental events in your area.
+                <strong>Welcome to Sustainable Acts of Kindness!</strong> Please add your information below to get started with finding environmental events in Boston.
               </p>
             </div>
           )}
@@ -713,7 +720,7 @@ const Profile: React.FC = () => {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Volunteer Location</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Boston Area Zip Code</label>
                       <div className="flex items-center space-x-2">
                         <MapPin className="w-4 h-4 text-gray-400" />
                         <div className="text-gray-900 bg-white px-3 py-2 rounded border border-gray-200 flex-1">
@@ -751,7 +758,7 @@ const Profile: React.FC = () => {
                     </div>
                     <div>
                       <label htmlFor="zip_code" className="block text-sm font-medium text-gray-700 mb-1">
-                        Preferred Volunteer Location (Zip Code)
+                        Boston Area Zip Code
                       </label>
                       <div className="relative">
                         <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -760,9 +767,9 @@ const Profile: React.FC = () => {
                           id="zip_code"
                           value={profileForm.zip_code}
                           onChange={(e) => setProfileForm(prev => ({ ...prev, zip_code: e.target.value }))}
-                          placeholder="Enter zip code (e.g., 02101)"
+                          placeholder="Enter Boston zip code (021xx, 022xx)"
                           className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                          maxLength={10}
+                          maxLength={5}
                         />
                       </div>
                       <p className="text-xs text-gray-500 mt-1">

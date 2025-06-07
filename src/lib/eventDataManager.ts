@@ -199,47 +199,15 @@ class EventDataManager {
     }
   }
 
-  // Enhanced coordinate generation with comprehensive Boston location mapping
+  // Simple coordinate generation for Boston area only
   private generateCoordinatesFromLocation(location: string): [number, number] {
     const cleanLocation = location.toLowerCase().trim();
     
     console.log('Generating coordinates for location:', location);
     
-    // Comprehensive Boston coordinates mapping
+    // Simple Boston area coordinates mapping
     const locationMap: { [key: string]: [number, number] } = {
-      // Exact location matches (case-insensitive)
-      'back bay, boston, ma': [42.3467, -71.0972],
-      'beacon hill, boston, ma': [42.3588, -71.0707],
-      'north end, boston, ma': [42.3647, -71.0542],
-      'south end, boston, ma': [42.3467, -71.0972],
-      'downtown boston, ma': [42.3601, -71.0589],
-      'financial district, boston, ma': [42.3601, -71.0589],
-      'chinatown, boston, ma': [42.3467, -71.0972],
-      'south boston, ma': [42.3188, -71.0846],
-      'east boston, ma': [42.3188, -71.0846],
-      'charlestown, boston, ma': [42.3875, -71.0995],
-      'jamaica plain, boston, ma': [42.3188, -71.0846],
-      'roxbury, boston, ma': [42.3188, -71.0846],
-      'dorchester, boston, ma': [42.3188, -71.0846],
-      'mattapan, boston, ma': [42.3188, -71.0846],
-      'roslindale, boston, ma': [42.3188, -71.0846],
-      'west roxbury, boston, ma': [42.3188, -71.0846],
-      'hyde park, boston, ma': [42.3188, -71.0846],
-      'allston, boston, ma': [42.3188, -71.0846],
-      'brighton, boston, ma': [42.3188, -71.0846],
-      'fenway, boston, ma': [42.3467, -71.0972],
-      'mission hill, boston, ma': [42.3188, -71.0846],
-      'boston common, boston, ma': [42.3550, -71.0656],
-      'public garden, boston, ma': [42.3541, -71.0711],
-      'boston harbor, boston, ma': [42.3601, -71.0589],
-      'charles river esplanade, boston, ma': [42.3601, -71.0589],
-      'franklin park, boston, ma': [42.3188, -71.0846],
-      'arnold arboretum, boston, ma': [42.3188, -71.0846],
-      'castle island, boston, ma': [42.3188, -71.0846],
-      'boston university area, boston, ma': [42.3505, -71.1054],
-      'harvard medical area, boston, ma': [42.3467, -71.0972],
-      
-      // Partial matches for neighborhoods
+      // Boston neighborhoods
       'back bay': [42.3467, -71.0972],
       'beacon hill': [42.3588, -71.0707],
       'north end': [42.3647, -71.0542],
@@ -253,34 +221,14 @@ class EventDataManager {
       'jamaica plain': [42.3188, -71.0846],
       'roxbury': [42.3188, -71.0846],
       'dorchester': [42.3188, -71.0846],
-      'mattapan': [42.3188, -71.0846],
-      'roslindale': [42.3188, -71.0846],
-      'west roxbury': [42.3188, -71.0846],
-      'hyde park': [42.3188, -71.0846],
-      'allston': [42.3188, -71.0846],
-      'brighton': [42.3188, -71.0846],
       'fenway': [42.3467, -71.0972],
-      'mission hill': [42.3188, -71.0846],
       'boston common': [42.3550, -71.0656],
       'public garden': [42.3541, -71.0711],
-      'boston harbor': [42.3601, -71.0589],
-      'charles river': [42.3601, -71.0589],
       'franklin park': [42.3188, -71.0846],
-      'arnold arboretum': [42.3188, -71.0846],
-      'castle island': [42.3188, -71.0846],
-      'boston university': [42.3505, -71.1054],
-      'harvard medical': [42.3467, -71.0972],
+      'charles river': [42.3601, -71.0589],
       
       // General Boston
       'boston': [42.3601, -71.0589],
-      'boston, ma': [42.3601, -71.0589],
-      'boston, massachusetts': [42.3601, -71.0589],
-      
-      // Test locations
-      'testing': [42.3601, -71.0589],
-      'test': [42.3580, -71.0620],
-      'tesing2': [42.3550, -71.0656],
-      'testing7': [42.3620, -71.0550]
     };
 
     // Try exact match first
@@ -297,7 +245,7 @@ class EventDataManager {
       }
     }
     
-    // Default to Boston center if no specific match
+    // Default to Boston center
     console.log('Using default Boston coordinates for:', cleanLocation);
     return [42.3601, -71.0589];
   }
@@ -316,8 +264,8 @@ class EventDataManager {
       status: event.status
     });
 
-    // Create a proper polygon around the coordinates with good visibility
-    const polygonSize = 0.008; // Size of the polygon
+    // Create a proper polygon around the coordinates
+    const polygonSize = 0.008;
     const [lng, lat] = coordinates;
 
     const feature = {
@@ -342,7 +290,7 @@ class EventDataManager {
         max_participants: event.max_participants,
         current_participants: event.current_participants || 0,
         updated_at: event.updated_at,
-        priority: 'medium', // Default priority for admin events
+        priority: 'medium',
         // Add specific properties based on event type
         ...(event.event_type === 'treePlanting' && { trees: event.max_participants || 100 }),
         ...(event.event_type === 'garden' && { plots: event.max_participants || 50 })
@@ -534,23 +482,6 @@ class EventDataManager {
       byId: Array.from(this.eventsById.entries()),
       adminCreated: Array.from(this.adminCreatedEvents.entries())
     };
-  }
-
-  // Debug method to check specific event
-  debugEvent(eventName: string) {
-    console.log('=== DEBUG EVENT:', eventName, '===');
-    console.log('In adminCreatedEvents:', Array.from(this.adminCreatedEvents.values()).find(e => e.title === eventName));
-    console.log('In eventsByTitle:', this.eventsByTitle.get(eventName));
-    console.log('In eventsById:', Array.from(this.eventsById.values()).find(e => e.title === eventName));
-    console.log('All admin events:', Array.from(this.adminCreatedEvents.values()).map(e => ({ title: e.title, status: e.status })));
-    
-    const mergedData = this.getMergedEventData();
-    const foundInMerged = mergedData.features.find(f => f.properties.name === eventName);
-    console.log('Found in merged data:', foundInMerged ? 'YES' : 'NO');
-    if (foundInMerged) {
-      console.log('Event details:', foundInMerged.properties);
-      console.log('Event geometry:', foundInMerged.geometry);
-    }
   }
 }
 
