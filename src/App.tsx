@@ -9,6 +9,7 @@ import AuthStatus from './components/AuthStatus';
 import Profile from './components/Profile';
 import About from './components/About';
 import Resources from './components/Resources';
+import Contact from './components/Contact';
 import MFAAPITest from './components/MFAAPITest';
 import AdminDashboard from './components/AdminDashboard';
 import AdminRoute from './components/AdminRoute';
@@ -49,6 +50,11 @@ function App() {
             <Route path="/resources" element={
               <div className="h-full overflow-y-auto">
                 <Resources />
+              </div>
+            } />
+            <Route path="/contact" element={
+              <div className="h-full overflow-y-auto">
+                <Contact />
               </div>
             } />
             {/* MFA Test route - protected by AdminRoute */}

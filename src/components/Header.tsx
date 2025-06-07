@@ -99,7 +99,7 @@ const Header: React.FC = () => {
               <li><Link to="/" className="hover:text-emerald-200 transition-colors">Home</Link></li>
               <li><Link to="/about" className="hover:text-emerald-200 transition-colors">About</Link></li>
               <li><Link to="/resources" className="hover:text-emerald-200 transition-colors">Resources</Link></li>
-              <li><a href="#" className="hover:text-emerald-200 transition-colors">Contact</a></li>
+              <li><Link to="/contact" className="hover:text-emerald-200 transition-colors">Contact</Link></li>
             </ul>
           </nav>
 
