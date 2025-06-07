@@ -236,7 +236,7 @@ const Auth: React.FC = () => {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: `${getAppUrl()}/auth?reset=true`,
+        redirectTo: `${getAppUrl()}/reset-password`,
         data: {
           app_name: 'Sustainable Acts of Kindness',
           app_description: 'Environmental Community Platform',
@@ -455,6 +455,11 @@ const Auth: React.FC = () => {
                   <p className="text-sm text-emerald-800">
                     <strong>Look for an email from Sustainable Acts of Kindness</strong> with the subject line "Reset your password". 
                     The email will contain a secure link to create a new password for your environmental community platform account.
+                  </p>
+                </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                  <p className="text-sm text-blue-800">
+                    <strong>Important:</strong> The reset link will take you to <code className="bg-blue-100 px-1 rounded text-xs">{getAppUrl()}/reset-password</code> where you can securely update your password.
                   </p>
                 </div>
                 <p className="text-sm text-gray-500 mb-6">

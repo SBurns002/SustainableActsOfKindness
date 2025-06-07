@@ -10,6 +10,7 @@ import Profile from './components/Profile';
 import About from './components/About';
 import Resources from './components/Resources';
 import Contact from './components/Contact';
+import ResetPassword from './components/ResetPassword';
 import MFAAPITest from './components/MFAAPITest';
 import AdminDashboard from './components/AdminDashboard';
 import AdminRoute from './components/AdminRoute';
@@ -35,6 +36,11 @@ function App() {
             <Route path="/auth-status" element={
               <div className="h-full overflow-y-auto">
                 <AuthStatus />
+              </div>
+            } />
+            <Route path="/reset-password" element={
+              <div className="h-full overflow-y-auto">
+                <ResetPassword />
               </div>
             } />
             <Route path="/profile" element={
