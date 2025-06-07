@@ -199,20 +199,15 @@ class EventDataManager {
     }
   }
 
-  // Generate coordinates for Boston locations with better matching
+  // Enhanced coordinate generation with comprehensive Boston location mapping
   private generateCoordinatesFromLocation(location: string): [number, number] {
     const cleanLocation = location.toLowerCase().trim();
     
     console.log('Generating coordinates for location:', location);
     
-    // Boston neighborhood coordinates with more specific matching
-    const bostonCoordinates: { [key: string]: [number, number] } = {
-      // Exact matches first (for testing events)
-      'testing': [42.3601, -71.0589],
-      'tesing2': [42.3550, -71.0656],
-      'test': [42.3580, -71.0620],
-      
-      // Boston neighborhoods and areas
+    // Comprehensive Boston coordinates mapping
+    const locationMap: { [key: string]: [number, number] } = {
+      // Exact location matches (case-insensitive)
       'back bay, boston, ma': [42.3467, -71.0972],
       'beacon hill, boston, ma': [42.3588, -71.0707],
       'north end, boston, ma': [42.3647, -71.0542],
@@ -244,7 +239,7 @@ class EventDataManager {
       'boston university area, boston, ma': [42.3505, -71.1054],
       'harvard medical area, boston, ma': [42.3467, -71.0972],
       
-      // Partial matches
+      // Partial matches for neighborhoods
       'back bay': [42.3467, -71.0972],
       'beacon hill': [42.3588, -71.0707],
       'north end': [42.3647, -71.0542],
@@ -276,18 +271,26 @@ class EventDataManager {
       'boston university': [42.3505, -71.1054],
       'harvard medical': [42.3467, -71.0972],
       
-      // General Boston matches
-      'boston': [42.3601, -71.0589]
+      // General Boston
+      'boston': [42.3601, -71.0589],
+      'boston, ma': [42.3601, -71.0589],
+      'boston, massachusetts': [42.3601, -71.0589],
+      
+      // Test locations
+      'testing': [42.3601, -71.0589],
+      'test': [42.3580, -71.0620],
+      'tesing2': [42.3550, -71.0656],
+      'testing7': [42.3620, -71.0550]
     };
 
-    // Try exact matches first
-    if (bostonCoordinates[cleanLocation]) {
-      console.log(`Found exact coordinates for "${cleanLocation}":`, bostonCoordinates[cleanLocation]);
-      return bostonCoordinates[cleanLocation];
+    // Try exact match first
+    if (locationMap[cleanLocation]) {
+      console.log(`Found exact coordinates for "${cleanLocation}":`, locationMap[cleanLocation]);
+      return locationMap[cleanLocation];
     }
 
     // Try partial matches
-    for (const [key, coords] of Object.entries(bostonCoordinates)) {
+    for (const [key, coords] of Object.entries(locationMap)) {
       if (cleanLocation.includes(key)) {
         console.log(`Found partial match coordinates for "${key}" in "${cleanLocation}":`, coords);
         return coords;
@@ -313,8 +316,8 @@ class EventDataManager {
       status: event.status
     });
 
-    // Create a proper polygon around the coordinates
-    const polygonSize = 0.008; // Larger polygon for better visibility
+    // Create a proper polygon around the coordinates with good visibility
+    const polygonSize = 0.008; // Size of the polygon
     const [lng, lat] = coordinates;
 
     const feature = {
@@ -359,7 +362,8 @@ class EventDataManager {
     console.log('Generated GeoJSON feature:', {
       name: feature.properties.name,
       coordinates: feature.geometry.coordinates[0],
-      center: [lng, lat]
+      center: [lng, lat],
+      hasValidCoordinates: !isNaN(lng) && !isNaN(lat)
     });
 
     return feature;
