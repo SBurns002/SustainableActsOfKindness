@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, GeoJSON, ZoomControl } from 'react-leaflet';
 import { useNavigate } from 'react-router-dom';
-import { Home, Info, BookOpen, Mail, LogIn, UserCircle, Search, MapPin, Calendar, Users, Clock } from 'lucide-react';
+import { Home, Info, BookOpen, Mail, LogIn, UserCircle, Search, MapPin, Calendar, Users, Clock, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { eventDataManager } from '../lib/eventDataManager';
 import DateRangeFilter from './DateRangeFilter';
@@ -667,6 +667,7 @@ const MapView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentLocation, setCurrentLocation] = useState<string | null>(null);
   const [showEventsList, setShowEventsList] = useState(false);
+  const [showLocationNotFound, setShowLocationNotFound] = useState(false);
 
   useEffect(() => {
     // Check for user's preferred zip code
@@ -770,10 +771,15 @@ const MapView: React.FC = () => {
       setCurrentLocation(searchQuery.trim());
       setUserZipCode(null); // Clear user zip code indicator since this is a search
       setShowEventsList(true);
+      setShowLocationNotFound(false);
       setMapKey(prev => prev + 1);
     } else {
-      // Show error or suggestion
-      alert('Location not found. Please try a zip code (e.g., 02101) or city, state (e.g., Boston, MA)');
+      // Show location not found message
+      setShowLocationNotFound(true);
+      // Hide the message after 8 seconds
+      setTimeout(() => {
+        setShowLocationNotFound(false);
+      }, 8000);
     }
   };
 
@@ -917,8 +923,26 @@ const MapView: React.FC = () => {
               </button>
             </form>
             
+            {/* Location Not Found Message */}
+            {showLocationNotFound && (
+              <div className="mt-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="flex items-start space-x-3">
+                  <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="text-amber-900 font-medium text-sm">Location Not Found</h4>
+                    <p className="text-amber-800 text-sm mt-1">
+                      We don't currently support events in this area, but our platform will be available in all locations in the near future!
+                    </p>
+                    <p className="text-amber-700 text-xs mt-2">
+                      Try searching for a Massachusetts zip code or city for now.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {/* Current Location Indicator */}
-            {(currentLocation || userZipCode) && (
+            {(currentLocation || userZipCode) && !showLocationNotFound && (
               <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
                 <div className="flex items-center space-x-2">
                   <MapPin className="w-4 h-4 text-emerald-600" />
