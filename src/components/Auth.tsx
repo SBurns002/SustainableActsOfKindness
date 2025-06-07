@@ -22,6 +22,16 @@ const Auth: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Get the current application URL for redirects
+  const getAppUrl = () => {
+    // In development, use the current origin
+    if (window.location.hostname === 'localhost' || window.location.hostname.includes('webcontainer')) {
+      return window.location.origin;
+    }
+    // In production, you would set this to your actual domain
+    return window.location.origin;
+  };
+
   // Check URL parameters on component mount
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
@@ -29,15 +39,25 @@ const Auth: React.FC = () => {
     const hasError = urlParams.get('error');
     const hasErrorDescription = urlParams.get('error_description');
     const isEmailConfirmed = urlParams.get('type') === 'signup';
+    const hasAccessToken = urlParams.get('access_token');
+    const hasRefreshToken = urlParams.get('refresh_token');
 
-    if (isEmailConfirmed) {
+    // Handle email confirmation
+    if (isEmailConfirmed || (hasAccessToken && hasRefreshToken)) {
       // User clicked email confirmation link
-      toast.success('Email confirmed successfully! You can now sign in.');
+      toast.success('Email confirmed successfully! You are now signed in.');
+      
       // Clear the URL parameters
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete('type');
       newUrl.searchParams.delete('token_hash');
+      newUrl.searchParams.delete('access_token');
+      newUrl.searchParams.delete('refresh_token');
       window.history.replaceState({}, '', newUrl.toString());
+      
+      // Redirect to profile for new users
+      navigate('/profile', { state: { isNewUser: true } });
+      return;
     }
 
     if (isPasswordReset) {
@@ -59,7 +79,7 @@ const Auth: React.FC = () => {
       newUrl.searchParams.delete('error_description');
       window.history.replaceState({}, '', newUrl.toString());
     }
-  }, [location.search]);
+  }, [location.search, navigate]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,16 +87,16 @@ const Auth: React.FC = () => {
 
     try {
       if (isSignUp) {
-        // For now, disable email confirmation to avoid issues
-        // and sign up users directly
+        // Enable email confirmation with proper redirect URL
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            // Disable email confirmation for now
-            emailRedirectTo: `${window.location.origin}/auth-status`,
+            // Use the current app URL for email confirmation redirect
+            emailRedirectTo: `${getAppUrl()}/auth?type=signup`,
             data: {
-              email_confirm: false // Disable email confirmation
+              // Enable email confirmation
+              email_confirm: true
             }
           }
         });
@@ -85,32 +105,16 @@ const Auth: React.FC = () => {
 
         // Check if user was created successfully
         if (data.user) {
-          // If email confirmation is disabled, user should be able to sign in immediately
-          if (data.user.email_confirmed_at || !data.user.confirmation_sent_at) {
-            // User is confirmed or confirmation is disabled, sign them in
-            const { error: signInError } = await supabase.auth.signInWithPassword({
-              email,
-              password,
-            });
-            
-            if (signInError) {
-              // If sign in fails, it might be because confirmation is still required
-              if (signInError.message.includes('Email not confirmed')) {
-                setConfirmationEmail(email);
-                setShowEmailConfirmation(true);
-                toast.info('Please check your email to confirm your account before signing in.');
-              } else {
-                throw signInError;
-              }
-            } else {
-              toast.success('Welcome! Account created successfully.');
-              navigate('/profile', { state: { isNewUser: true } });
-            }
-          } else {
+          // Check if email confirmation is required
+          if (data.user.confirmation_sent_at && !data.user.email_confirmed_at) {
             // Email confirmation is required
             setConfirmationEmail(email);
             setShowEmailConfirmation(true);
-            toast.success('Please check your email to confirm your account before signing in.');
+            toast.success('Account created! Please check your email to confirm your account before signing in.');
+          } else {
+            // Email confirmation is disabled or user is already confirmed
+            toast.success('Welcome! Account created successfully.');
+            navigate('/profile', { state: { isNewUser: true } });
           }
         }
         
@@ -126,6 +130,8 @@ const Auth: React.FC = () => {
         // Check if email is confirmed (only if confirmation is enabled)
         if (data.user && data.user.confirmation_sent_at && !data.user.email_confirmed_at) {
           toast.error('Please confirm your email address before signing in. Check your inbox for a confirmation link.');
+          setConfirmationEmail(email);
+          setShowEmailConfirmation(true);
           setLoading(false);
           return;
         }
@@ -194,7 +200,6 @@ const Auth: React.FC = () => {
         }
       } else if (error.message.includes('Email not confirmed')) {
         toast.error('Please check your email and confirm your account before signing in.');
-        // Show the email confirmation screen
         setConfirmationEmail(email);
         setShowEmailConfirmation(true);
       } else if (error.message.includes('Signup requires a valid password')) {
@@ -231,12 +236,12 @@ const Auth: React.FC = () => {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: `${window.location.origin}/auth?reset=true`,
+        redirectTo: `${getAppUrl()}/auth?reset=true`,
         data: {
           app_name: 'Sustainable Acts of Kindness',
           app_description: 'Environmental Community Platform',
-          support_email: 'support@sustainableactsofkindness.org',
-          website_url: window.location.origin,
+          support_email: 'admin@sustainableactsofkindness.org',
+          website_url: getAppUrl(),
           reset_reason: 'password_reset_request',
           user_email: resetEmail,
           timestamp: new Date().toISOString()
@@ -272,7 +277,7 @@ const Auth: React.FC = () => {
         type: 'signup',
         email: confirmationEmail,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth?type=signup`
+          emailRedirectTo: `${getAppUrl()}/auth?type=signup`
         }
       });
 
@@ -373,14 +378,6 @@ const Auth: React.FC = () => {
                 We've sent a confirmation email to <strong>{confirmationEmail}</strong>
               </p>
               
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-                <p className="text-sm text-amber-800">
-                  <strong>Important:</strong> If you don't receive the confirmation email within a few minutes, 
-                  your account may have been created without email confirmation enabled. 
-                  Try signing in directly with your credentials.
-                </p>
-              </div>
-              
               <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-6">
                 <p className="text-sm text-emerald-800">
                   <strong>Next steps:</strong>
@@ -388,12 +385,19 @@ const Auth: React.FC = () => {
                 <ol className="text-sm text-emerald-700 mt-2 list-decimal list-inside space-y-1">
                   <li>Check your email inbox (and spam folder)</li>
                   <li>Click the confirmation link in the email</li>
-                  <li>Return here to sign in with your credentials</li>
+                  <li>You'll be automatically signed in and redirected</li>
                 </ol>
               </div>
               
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-blue-800">
+                  <strong>Important:</strong> The confirmation link will redirect you back to this application 
+                  at <code className="bg-blue-100 px-1 rounded text-xs">{getAppUrl()}</code>
+                </p>
+              </div>
+              
               <p className="text-sm text-gray-500 mb-6">
-                Didn't receive the email? Check your spam folder or try signing in directly.
+                Didn't receive the email? Check your spam folder or request a new one.
               </p>
               <div className="space-y-3">
                 <button
@@ -401,16 +405,6 @@ const Auth: React.FC = () => {
                   className="w-full flex justify-center py-2 px-4 border border-emerald-600 text-emerald-600 rounded-md shadow-sm text-sm font-medium hover:bg-emerald-50 transition-colors"
                 >
                   Resend Confirmation Email
-                </button>
-                <button
-                  onClick={() => {
-                    resetEmailConfirmationState();
-                    setIsSignUp(false); // Switch to sign in mode
-                    toast.info('Try signing in with your credentials - email confirmation may not be required.');
-                  }}
-                  className="w-full flex justify-center py-2 px-4 border border-blue-600 text-blue-600 rounded-md shadow-sm text-sm font-medium hover:bg-blue-50 transition-colors"
-                >
-                  Try Signing In Instead
                 </button>
                 <button
                   onClick={resetEmailConfirmationState}
