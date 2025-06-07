@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Shield, AlertCircle, RefreshCw, AlertTriangle, X, CheckCircle, Info } from 'lucide-react';
+import { Shield, AlertCircle, RefreshCw, AlertTriangle, X, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface MFADisableProps {
@@ -14,7 +14,6 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
   const [error, setError] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState('');
   const [step, setStep] = useState<'confirm' | 'verify' | 'success'>('confirm');
-  const [debugInfo, setDebugInfo] = useState<string>('');
   const [retryCount, setRetryCount] = useState(0);
 
   // Auto-clear error after 8 seconds
@@ -30,7 +29,6 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
   const proceedToVerification = () => {
     setStep('verify');
     setError(null);
-    setDebugInfo('Ready to verify. Please enter your current 6-digit code.');
   };
 
   const disableMFA = async () => {
@@ -42,7 +40,6 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
     try {
       setIsLoading(true);
       setError(null);
-      setDebugInfo('Creating verification challenge...');
 
       console.log('Starting MFA disable process:', {
         factorId: totpFactorId.substring(0, 8) + '...',
@@ -72,7 +69,6 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
       }
 
       console.log('Challenge created successfully:', challengeData.id);
-      setDebugInfo('Challenge created. Verifying your code...');
 
       // Wait for challenge to be ready
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -102,7 +98,6 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
       }
 
       console.log('Code verified successfully:', verifyData);
-      setDebugInfo('Code verified. Disabling MFA...');
 
       // Step 3: Unenroll the factor
       const { error: unenrollError } = await supabase.auth.mfa.unenroll({
@@ -121,7 +116,6 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
       }
 
       console.log('MFA disabled successfully');
-      setDebugInfo('MFA disabled successfully!');
       setStep('success');
       toast.success('Two-factor authentication has been successfully disabled.');
       
@@ -134,7 +128,6 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
       console.error('MFA disable error:', err);
       setError(err.message || 'An unexpected error occurred. Please try again.');
       setVerificationCode('');
-      setDebugInfo('');
     } finally {
       setIsLoading(false);
     }
@@ -142,7 +135,6 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
 
   const retryProcess = () => {
     setError(null);
-    setDebugInfo('');
     setVerificationCode('');
     setIsLoading(false);
     setRetryCount(0);
@@ -175,18 +167,6 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
             </button>
           )}
         </div>
-
-        {debugInfo && (
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-start gap-2">
-              <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-blue-800 text-sm font-medium">Status:</p>
-                <p className="text-blue-700 text-sm">{debugInfo}</p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -315,9 +295,7 @@ export default function MFADisable({ onSuccess, onCancel, totpFactorId }: MFADis
                 {isLoading ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    {debugInfo.includes('Creating') ? 'Creating...' : 
-                     debugInfo.includes('Verifying') ? 'Verifying...' : 
-                     debugInfo.includes('Disabling') ? 'Disabling...' : 'Processing...'}
+                    Processing...
                   </>
                 ) : (
                   'Disable MFA'

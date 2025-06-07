@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Shield, AlertCircle, RefreshCw, X, CheckCircle, Info, Copy, Eye, EyeOff, Wifi, WifiOff } from 'lucide-react';
+import { Shield, AlertCircle, RefreshCw, X, CheckCircle, Copy, Eye, EyeOff, Wifi, WifiOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface MFASetupProps {
@@ -16,7 +16,6 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
   const [verificationCode, setVerificationCode] = useState('');
   const [factorId, setFactorId] = useState<string | null>(null);
   const [step, setStep] = useState<'initial' | 'scan' | 'verify' | 'success'>('initial');
-  const [debugInfo, setDebugInfo] = useState<string>('');
   const [showSecret, setShowSecret] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [connectionStatus, setConnectionStatus] = useState<'online' | 'offline' | 'checking'>('checking');
@@ -76,7 +75,6 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
         console.log('MFA challenge verified via auth state change');
         setVerificationCompleted(true);
         setStep('success');
-        setDebugInfo('Two-factor authentication enabled successfully!');
         toast.success('Two-factor authentication enabled successfully!');
         
         setTimeout(() => {
@@ -100,8 +98,6 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
 
   const cleanupPreviousFactors = async (userId: string) => {
     try {
-      setDebugInfo('Checking for existing MFA factors...');
-      
       const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
       
       if (factorsError) {
@@ -118,8 +114,6 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
         // Clean up unverified factors
         const unverifiedFactors = factors.totp.filter(f => f.status !== 'verified');
         if (unverifiedFactors.length > 0) {
-          setDebugInfo(`Cleaning up ${unverifiedFactors.length} incomplete setup(s)...`);
-          
           for (const factor of unverifiedFactors) {
             try {
               await supabase.auth.mfa.unenroll({ factorId: factor.id });
@@ -144,7 +138,6 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
     try {
       setIsLoading(true);
       setError(null);
-      setDebugInfo('Initializing MFA setup...');
 
       // Check connection first
       if (connectionStatus === 'offline') {
@@ -161,8 +154,6 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
 
       // Clean up any previous incomplete setups
       await cleanupPreviousFactors(user.id);
-
-      setDebugInfo('Creating new MFA factor...');
       
       // Generate unique friendly name
       const timestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
@@ -207,12 +198,10 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
       setSecret(data.totp.secret);
       setFactorId(data.id);
       setStep('scan');
-      setDebugInfo('Setup ready! Please scan the QR code with your authenticator app.');
       
     } catch (err: any) {
       console.error('MFA enrollment error:', err);
       setError(err.message || 'An unexpected error occurred during setup.');
-      setDebugInfo('');
     } finally {
       setIsLoading(false);
     }
@@ -231,8 +220,6 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
   // Test network connectivity before verification
   const testNetworkConnectivity = async (): Promise<boolean> => {
     try {
-      setDebugInfo('Testing network connectivity...');
-      
       // Simple connectivity test
       const { data, error } = await withTimeout(
         supabase.auth.getUser(), 
@@ -277,8 +264,6 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
         throw new Error('Network connectivity issue detected. Please check your internet connection and try again.');
       }
 
-      setDebugInfo('Creating verification challenge...');
-
       console.log('Starting MFA verification process:', {
         factorId: factorId.substring(0, 8) + '...',
         codeLength: verificationCode.length,
@@ -313,7 +298,6 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
       }
 
       console.log('Challenge created successfully:', challengeData.id);
-      setDebugInfo('Challenge created. Verifying your code...');
 
       // Step 2: Wait for challenge to be ready
       await new Promise(resolve => setTimeout(resolve, 1500));
@@ -325,8 +309,6 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
         code: verificationCode.replace(/./g, '*'),
         timestamp: new Date().toISOString()
       });
-
-      setDebugInfo('Sending verification request...');
 
       // Create verification promise with detailed logging
       const verifyPromise = new Promise(async (resolve, reject) => {
@@ -409,7 +391,6 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
 
       // Check if we got a successful response
       console.log('Verification successful! Response data:', verifyResponse.data);
-      setDebugInfo('Verification successful! Confirming MFA status...');
 
       // Step 4: Verify the factor is now active with timeout
       try {
@@ -426,7 +407,6 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
             console.log('MFA successfully enabled and verified:', verifiedFactor);
             setVerificationCompleted(true);
             setStep('success');
-            setDebugInfo('Two-factor authentication is now active!');
             toast.success('Two-factor authentication enabled successfully!');
             
             setTimeout(() => {
@@ -445,7 +425,6 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
       console.log('Verification completed successfully (fallback success)');
       setVerificationCompleted(true);
       setStep('success');
-      setDebugInfo('Two-factor authentication enabled!');
       toast.success('Two-factor authentication enabled successfully!');
       
       setTimeout(() => {
@@ -471,7 +450,6 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
       }
       
       setVerificationCode('');
-      setDebugInfo('');
     } finally {
       setIsLoading(false);
     }
@@ -496,7 +474,6 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
     setFactorId(null);
     setStep('initial');
     setIsLoading(false);
-    setDebugInfo('');
     setRetryCount(0);
     setShowSecret(false);
     setVerificationCompleted(false);
@@ -546,18 +523,6 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
               <div>
                 <p className="text-red-800 text-sm font-medium">Connection Issue</p>
                 <p className="text-red-700 text-sm">Please check your internet connection before proceeding.</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {debugInfo && (
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-start gap-2">
-              <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-blue-800 text-sm font-medium">Status:</p>
-                <p className="text-blue-700 text-sm">{debugInfo}</p>
               </div>
             </div>
           </div>
@@ -740,10 +705,7 @@ export default function MFASetup({ onComplete, onCancel }: MFASetupProps) {
                 {isLoading ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    {debugInfo.includes('Creating') ? 'Creating...' : 
-                     debugInfo.includes('Challenge created') ? 'Verifying...' : 
-                     debugInfo.includes('Sending') ? 'Sending...' :
-                     debugInfo.includes('Verification successful') ? 'Confirming...' : 'Processing...'}
+                    Processing...
                   </>
                 ) : connectionStatus === 'offline' ? (
                   'Connection Required'
