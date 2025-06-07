@@ -31,10 +31,8 @@ const Header: React.FC = () => {
         
         if (error) {
           console.error('Auth error:', error);
-          // If user doesn't exist in database, clear the session
-          if (error.message?.includes('User from sub claim in JWT does not exist')) {
-            await supabase.auth.signOut();
-          }
+          // Clear the session for any authentication error
+          await supabase.auth.signOut();
           setIsAuthenticated(false);
           setUserEmail(null);
           setHasUpcomingEvents(false);
