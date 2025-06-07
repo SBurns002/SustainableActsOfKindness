@@ -84,12 +84,16 @@ const Header: React.FC = () => {
   return (
     <header className="bg-emerald-700 text-white shadow-md py-4 px-6 relative z-[9999]">
       <div className="container mx-auto flex justify-between items-center">
-        <Link to="/" className="flex items-center space-x-2">
+        {/* Title on far left */}
+        <div className="flex items-center space-x-2 flex-shrink-0">
           <MapPin className="h-6 w-6" />
-          <h1 className="text-xl font-bold text-center">Sustainable Acts of Kindness</h1>
-        </Link>
+          <Link to="/" className="text-xl font-bold whitespace-nowrap">
+            Sustainable Acts of Kindness
+          </Link>
+        </div>
         
-        <div className="flex items-center space-x-6">
+        {/* Navigation and auth section */}
+        <div className="flex items-center space-x-6 ml-auto">
           <nav className="hidden md:block">
             <ul className="flex space-x-6">
               <li><Link to="/" className="hover:text-emerald-200 transition-colors">Home</Link></li>
@@ -146,7 +150,7 @@ const Header: React.FC = () => {
           ) : (
             <button
               onClick={() => navigate('/auth')}
-              className="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-lg transition-colors"
+              className="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-lg transition-colors flex-shrink-0"
             >
               <LogIn className="h-5 w-5" />
               <span>Login / Sign Up</span>
@@ -154,7 +158,7 @@ const Header: React.FC = () => {
           )}
         </div>
         
-        <button className="block md:hidden">
+        <button className="block md:hidden ml-4">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
           </svg>
