@@ -4,6 +4,14 @@ A full-stack web application that helps users discover, track, and share
 everyday sustainable actions — turning small eco-friendly habits into a 
 community-driven movement.
 
+## Live Demo
+[View the app](https://benevolent-smakager-b58e25.netlify.app/)
+
+## Screenshots
+<img width="1801" height="851" alt="Screenshot 2026-04-16 at 3 59 44 PM" src="https://github.com/user-attachments/assets/9c40cbb7-d378-47ab-b1f6-4c5d0a4ecdf9" />
+<img width="1656" height="844" alt="Screenshot 2026-04-16 at 4 00 30 PM" src="https://github.com/user-attachments/assets/57c775f9-56af-448a-9133-d4844fc98e9e" />
+<img width="1615" height="800" alt="Screenshot 2026-04-16 at 4 00 13 PM" src="https://github.com/user-attachments/assets/c93777e7-94f9-4c58-8e90-fc7be917bce4" />
+
 ## Tech Stack
 - **Frontend:** React, TypeScript, Tailwind CSS, Vite
 - **Backend:** Supabase (PostgreSQL + Auth + Storage)
